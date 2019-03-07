@@ -99,14 +99,14 @@ def delete_vpc(client, vpc_id=ec2_vpc_id, mode=True):
     https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.delete_vpc
     """
     try:
-        print('Deleting %s %s' % (vpc_id, '(dryrun)' if mode else ''))
+        print('Deleting %s %s' % (vpc_id, ('(dryrun)' if mode else '')))
         return client.delete_vpc(VpcId=vpc_id, DryRun=mode)
     except Exception as err:
         handle(err)
 
 def get_vpcs(client, name='tag:project', value=ec2_project_name, mode=True):
     """
-    Get VPC(s) by tag.
+    Get VPC(s) by filter
     https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.describe_vpcs
     """
     try:
@@ -135,7 +135,7 @@ def delete_subnet(client, subnet=ec2_subnet_id, mode=True):
     https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.delete_subnet
     """
     try:
-        print('Deleting %s %s' % (subnet, '(dryrun)' if mode else ''))
+        print('Deleting %s %s' % (subnet, ('(dryrun)' if mode else '')))
         return client.delete_subnet(SubnetId=subnet, DryRun=mode)
     except Exception as err:
         handle(err)
@@ -170,7 +170,7 @@ def delete_sg(client, groupid=ec2_sg_id, mode=True):
     See https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.delete_security_group
     """
     try:
-        print('Deleting %s %s' % (groupid, '(dryrun)' if mode else ''))
+        print('Deleting %s %s' % (groupid, ('(dryrun)' if mode else '')))
         return client.delete_security_group( GroupId=groupid, DryRun=mode)
     except Exception as err:
         handle(err)
@@ -225,7 +225,7 @@ def delete_elastic_ip(client, allocation_id=ec2_elastic_ip_allocation_id, public
     https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.release_address
     """
     try:
-        print('Deleting %s %s %s' % (allocation_id, public_ip, '(dryrun)' if mode else ''))
+        print('Deleting %s %s %s' % (allocation_id, public_ip, ('(dryrun)' if mode else '')))
         client.release_address( AllocationId=allocation_id, DryRun=mode)
     except Exception as err:
         handle(err)
@@ -266,7 +266,7 @@ def delete_internet_gateway(client, gateway_id=ec2_internet_gateway_id, mode=Tru
     https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.delete_internet_gateway
     """
     try:
-        print('Deleting %s %s' % (gateway_id, '(dryrun)' if mode else ''))
+        print('Deleting %s %s' % (gateway_id, ('(dryrun)' if mode else '')))
         return client.delete_internet_gateway( InternetGatewayId=gateway_id, DryRun=mode)
     except Exception as err:
         handle(err)
@@ -287,7 +287,7 @@ def attach_internet_gateway(client, gateway_id=ec2_internet_gateway_id, vpc_id=e
     https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.attach_internet_gateway
     """
     try:
-        print('Attaching %s to %s %s' % ( gateway_id, vpc_id, '(dryrun)' if mode else '' ))
+        print('Attaching %s to %s %s' % ( gateway_id, vpc_id, ('(dryrun)' if mode else '' )))
         client.attach_internet_gateway( InternetGatewayId=gateway_id, VpcId=vpc_id, DryRun=mode)
     except Exception as err:
         handle(err)
@@ -298,7 +298,7 @@ def detach_internet_gateway(client, gateway_id=ec2_internet_gateway_id, vpc_id=e
     https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.detach_internet_gateway
     """
     try:
-        print('Detaching %s from %s %s' % ( gateway_id, vpc_id, '(dryrun)' if mode else '' ))
+        print('Detaching %s from %s %s' % ( gateway_id, vpc_id, ('(dryrun)' if mode else '' )))
         client.detach_internet_gateway( InternetGatewayId=gateway_id, VpcId=vpc_id, DryRun=mode)
     except Exception as err:
         handle(err)
@@ -314,7 +314,7 @@ def create_instance(ec2, image_id=ec2_ami, image_type=ec2_ami_type, sg_id=ec2_sg
     Launch a free tier Amazon Linux AMI using your Amazon credentials.
     """
     try:
-        print('Creating instance %s' % '(dryrun)' if mode else '' )
+        print('Creating instance %s' % ('(dryrun)' if mode else '') )
         return ec2.create_instances(ImageId=image_id, MaxCount=1, MinCount=1, InstanceType=image_type, SecurityGroupIds=[sg_id,], SubnetId=sn_id, UserData=userdata, KeyName=key, DryRun=mode)
     except Exception as err:
         handle(err)
@@ -325,7 +325,7 @@ def delete_instance(instance, instance_id=ec2_instance_id, mode=True):
     See https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.delete_security_group
     """
     try:
-        print('Terminating instance %s' % '(dryrun)' if mode else '' )
+        print('Terminating instance %s' % ('(dryrun)' if mode else '') )
         instance.terminate(DryRun=mode)
         instance.wait_until_terminated(Filters=[{'Name': 'instance-id', 'Values': [instance_id,]},], DryRun=mode)
     except Exception as err:
@@ -362,11 +362,11 @@ def clean(ec2, client):
                     instances = get_instances(client, 'vpc-id', ec2_vpc_id, False, mode)
                     if instances and "Reservations" in instances and instances['Reservations']:
                         for v in instances['Reservations'][0]['Instances']:
+                            eips = get_elastic_ips(client, 'domain', 'vpc', None, v['InstanceId'], mode)
                             delete_instance(ec2.Instance(v['InstanceId']), v['InstanceId'], mode)
     
                             ### ELASTIC IPS ###
-                            eips = get_elastic_ips(client, 'domain', 'vpc', None, v['InstanceId'], mode)
-                            if eips:
+                            if eips and "Addresses" in eips and eips['Addresses']:
                                 for ip in eips['Addresses']:
                                     delete_elastic_ip(client, ip['AllocationId'], ip['PublicIp'], mode)
 
