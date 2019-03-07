@@ -34,22 +34,21 @@ echo "<?php phpinfo(); ?>" > /var/www/html/phpinfo.php
 """
 
 def handle(error):
-    if error.response['Error']['Code'] in ('DependencyViolation',):
-        print('Failed (%s)' % error.response['Error']['Code'])
-    elif error.response['Error']['Code'] in ('InvalidGroup.NotFound',):
-        print('Failed (%s)' % error.response['Error']['Code'])
-    elif error.response['Error']['Code'] in ('CannotDelete',):
-        return
-        print('Failed (%s)' % error.response['Error']['Code'])
-    elif error.response['Error']['Code'] in ('VpcLimitExceeded',):
-        print('Failed (%s)' % error.response['Error']['Code'])
-    elif error.response['Error']['Code'] in ('UnauthorizedOperation',):
-        print('Failed (%s)' % error.response['Error']['Code'])
-    elif error.response['Error']['Code'] in ('DryRunOperation',):
-        return
-    else:
-        print("Failed with %s" % error)
-    print(error)
+    if error.response:
+        if error.response['Error']['Code'] in ('DependencyViolation',):
+            print('Failed (%s)' % error.response['Error']['Code'])
+        elif error.response['Error']['Code'] in ('InvalidGroup.NotFound',):
+            print('Failed (%s)' % error.response['Error']['Code'])
+        elif error.response['Error']['Code'] in ('CannotDelete',):
+            return
+            print('Failed (%s)' % error.response['Error']['Code'])
+        elif error.response['Error']['Code'] in ('VpcLimitExceeded',):
+            print('Failed (%s)' % error.response['Error']['Code'])
+        elif error.response['Error']['Code'] in ('UnauthorizedOperation',):
+            print('Failed (%s)' % error.response['Error']['Code'])
+        elif error.response['Error']['Code'] in ('DryRunOperation',):
+            return
+    print("Failed with %s" % error)
     exit (1)
 
 ############
@@ -249,16 +248,13 @@ def delete_internet_gateway(client, gateway_id=g_internet_gateway_id, mode=True)
     except Exception as err:
         handle(err)
 
-def get_internet_gateways(client, name='attachment.vpc-id', value=g_vpc_id, gateway_id=g_internet_gateway_id, mode=True):
+def get_internet_gateways(client, name='attachment.vpc-id', value=g_vpc_id, mode=True):
     """
     Get internet gateways IPs by searching for stuff
     https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.describe_internet_gateways
     """
     try:
-        if gateway_id:
-            return client.describe_internet_gateways(Filters=[{'Name': name, 'Values': [value,]},], InternetGatewayIds=[gateway_id,], DryRun=mode)
-        else:
-            return client.describe_internet_gateways(Filters=[{'Name': name, 'Values': [value,]},], DryRun=mode)
+        return client.describe_internet_gateways(Filters=[{'Name': name, 'Values': [value,]},], DryRun=mode)
     except Exception as err:
         handle(err)
 
@@ -268,6 +264,7 @@ def attach_internet_gateway(client, gateway_id=g_internet_gateway_id, vpc_id=g_v
     https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.attach_internet_gateway
     """
     try:
+        print('Attaching %s t0 %s' % ( gateway_id, vpc_id ))
         client.attach_internet_gateway( InternetGatewayId=gateway_id, VpcId=vpc_id, DryRun=mode)
     except Exception as err:
         handle(err)
@@ -345,9 +342,6 @@ for mode in (True, False):
                         g_instance_id = v['InstanceId']
                         delete_instance(ec2.Instance(g_instance_id), g_instance_id, mode)
 
-                ### INTERNET GATEWAYS ### 
-                gateways = get_internet_gateways(
-
                 ### ELASTIC IPS ###
                 eips = get_elastic_ips(client, 'domain', 'vpc', None, g_instance_id, mode)
                 if eips:
@@ -359,6 +353,12 @@ for mode in (True, False):
                 if subnets:
                     for sn in subnets['Subnets']:
                         delete_subnet(client, sn['SubnetId'], mode)
+
+                ### INTERNET GATEWAY ###
+                gateways = get_internet_gateways(client, 'attachment.vpc-id', g_vpc_id, mode)
+                if gateways:
+                    for gw in gateways['InternetGateways']:
+                        delete_internet_gateway(client, gw['InternetGatewayId'], mode)
 
                 ### SECURITY GROUPS ###
                 sgs = get_sgs(client, 'vpc-id', g_vpc_id, g_group_name, mode)
