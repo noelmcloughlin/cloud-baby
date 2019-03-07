@@ -35,17 +35,11 @@ echo "<?php phpinfo(); ?>" > /var/www/html/phpinfo.php
 
 def handle(error):
     if error.response:
-        if error.response['Error']['Code'] in ('DependencyViolation',):
-            print('Failed (%s)' % error.response['Error']['Code'])
-        elif error.response['Error']['Code'] in ('InvalidGroup.NotFound',):
+        if error.response['Error']['Code'] in ('DependencyViolation', 'InvalidGroup.NotFound', 'VpcLimitExceeded', 'UnauthorizedOperation', 'ParamValidationError', 'AddressLimitExceeded',):
             print('Failed (%s)' % error.response['Error']['Code'])
         elif error.response['Error']['Code'] in ('CannotDelete',):
+            print('Failed (%s)' % error.response['Error']['Code'])
             return
-            print('Failed (%s)' % error.response['Error']['Code'])
-        elif error.response['Error']['Code'] in ('VpcLimitExceeded',):
-            print('Failed (%s)' % error.response['Error']['Code'])
-        elif error.response['Error']['Code'] in ('UnauthorizedOperation',):
-            print('Failed (%s)' % error.response['Error']['Code'])
         elif error.response['Error']['Code'] in ('DryRunOperation',):
             return
     print("Failed with %s" % error)
@@ -202,7 +196,7 @@ def delete_elastic_ip(client, allocation_id=g_elastic_ip_allocation_id, public_i
     """
     try:
         print('Deleting %s %s %s' % (allocation_id, public_ip, '(dryrun)' if mode else ''))
-        return client.release_address( AllocationId=allocation_id, DryRun=mode)
+        client.release_address( AllocationId=allocation_id, DryRun=mode)
     except Exception as err:
         handle(err)
 
@@ -243,7 +237,7 @@ def delete_internet_gateway(client, gateway_id=g_internet_gateway_id, mode=True)
     """
     try:
         print('Deleting %s %s' % (gateway_id, '(dryrun)' if mode else ''))
-        return client.delete_internet_gateway( gateway_id=g_internet_gateway_id, DryRun=mode)
+        return client.delete_internet_gateway( InternetGatewayId=gateway_id, DryRun=mode)
     except Exception as err:
         handle(err)
 
@@ -265,6 +259,17 @@ def attach_internet_gateway(client, gateway_id=g_internet_gateway_id, vpc_id=g_v
     try:
         print('Attaching %s to %s %s' % ( gateway_id, vpc_id, '(dryrun)' if mode else '' ))
         client.attach_internet_gateway( InternetGatewayId=gateway_id, VpcId=vpc_id, DryRun=mode)
+    except Exception as err:
+        handle(err)
+
+def detach_internet_gateway(client, gateway_id=g_internet_gateway_id, vpc_id=g_vpc_id, mode=True):
+    """
+    Attaches an internet gateway to a VPC
+    https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.detach_internet_gateway
+    """
+    try:
+        print('Detaching %s from %s %s' % ( gateway_id, vpc_id, '(dryrun)' if mode else '' ))
+        client.detach_internet_gateway( InternetGatewayId=gateway_id, VpcId=vpc_id, DryRun=mode)
     except Exception as err:
         handle(err)
 
@@ -319,7 +324,7 @@ ec2 = boto3.resource('ec2')
 for mode in (True, False):
     try:
         #### VPC ####
-        print("\nCleanup EC2 Resources %s" % '(dryrun)' if mode else '')
+        print("\nCLEAN DOWN E2C ENVIRON %s" % ('dryrun' if mode else 'for real, please be patient'))
         vpcs = get_vpcs(client, 'cidr', g_cidr_block, mode)
         if vpcs:
             for vpc in vpcs['Vpcs']:
@@ -329,14 +334,13 @@ for mode in (True, False):
                 instances = get_instances(client, 'vpc-id', g_vpc_id, False, mode)
                 if instances and "Reservations" in instances and instances['Reservations']:
                     for v in instances['Reservations'][0]['Instances']:
-                        g_instance_id = v['InstanceId']
-                        delete_instance(ec2.Instance(g_instance_id), g_instance_id, mode)
+                        delete_instance(ec2.Instance(v['InstanceId']), v['InstanceId'], mode)
 
-                ### ELASTIC IPS ###
-                eips = get_elastic_ips(client, 'domain', 'vpc', None, g_instance_id, mode)
-                if eips:
-                    for ip in eips['Addresses']:
-                        delete_elastic_ip(client, ip['AllocationId'], ip['PublicIp'], mode)
+                        ### ELASTIC IPS ###
+                        eips = get_elastic_ips(client, 'domain', 'vpc', None, v['InstanceId'], mode)
+                        if eips:
+                            for ip in eips['Addresses']:
+                                delete_elastic_ip(client, ip['AllocationId'], ip['PublicIp'], mode)
 
                 ### SUBNETS ###
                 subnets = get_subnets(client, 'vpc-id', g_vpc_id, mode)
@@ -347,8 +351,9 @@ for mode in (True, False):
                 ### INTERNET GATEWAY ###
                 gateways = get_internet_gateways(client, 'attachment.vpc-id', g_vpc_id, mode)
                 if gateways:
-                    for gw in gateways['InternetGateways']:
-                        delete_internet_gateway(client, gw['InternetGatewayId'], mode)
+                    for v in gateways['InternetGateways']:
+                        detach_internet_gateway(client, v['InternetGatewayId'], g_vpc_id, mode) 
+                        delete_internet_gateway(client, v['InternetGatewayId'], mode)
 
                 ### SECURITY GROUPS ###
                 sgs = get_sgs(client, 'vpc-id', g_vpc_id, g_group_name, mode)
@@ -358,10 +363,7 @@ for mode in (True, False):
 
                 ### VPC ###
                 delete_vpc(client, g_vpc_id, mode)
-        else:
-            print('No existing VPC found %s' % '(dryrun)' if mode else '')
     except Exception as err:
-        print('Problem')
         handle(err)
 
 ##########################
@@ -369,7 +371,7 @@ for mode in (True, False):
 ##########################
 for mode in (True, False):
     try:
-        print("\nCreate EC2 Resources %s" % '(dryrun)' if mode else '')
+        print("\nCREATE E2C ENVIRON %s" % ('dryrun' if mode else 'for real, please be patient'))
         g_vpc_id = create_vpc(client, g_project_name, g_cidr_block, True, g_tenancy, mode)
         if g_vpc_id:
             g_vpc_id = g_vpc_id['Vpc']['VpcId']
@@ -402,20 +404,19 @@ for mode in (True, False):
             instance = create_instance(g_ami, g_ami_type, g_sg_id, g_subnet_id, g_userdata, mode)
             if instance and instance[0]:
                 g_instance_id = instance[0].id
-            if g_instance_id:
-                instance = ec2.Instance(g_instance_id)
-                instance.wait_until_running(Filters=[{'Name': 'instance-id', 'Values': [g_instance_id,]},], DryRun=mode)
+                if g_instance_id:
+                    instance = ec2.Instance(g_instance_id)
+                    instance.wait_until_running(Filters=[{'Name': 'instance-id', 'Values': [g_instance_id,]},], DryRun=mode)
 
-            #### ELASTIC IP ####
-            g_elastic_ip_association_id = associate_elastic_ip(client, g_elastic_ip_allocation_id, g_instance_id, mode)
-            if g_elastic_ip_allocation_id:
-                g_elastic_ip_allocation_id = g_elastic_ip_allocation_id['AllocationId']
+                    #### ELASTIC IP ASSOCIATION  ####
+                    g_elastic_ip_association_id = associate_elastic_ip(client, g_elastic_ip_allocation_id, g_instance_id, mode)
+                    if g_elastic_ip_association_id:
+                        g_elastic_ip_association_id = g_elastic_ip_association_id['AssociationId']
 
         print('created VPC %s' % ('(dryrun)' if mode else g_vpc_id))
         print('created Subnet %s' % ('(dryrun)' if mode else g_subnet_id))
         print('created Security Group %s' % ('(dryrun)' if mode else g_sg_id))
         print('created Instance %s' % ('(dryrun)' if mode else g_instance_id))
     except Exception as err:
-        print('Problem')
         handle(err)
 
