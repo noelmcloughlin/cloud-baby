@@ -18,7 +18,7 @@ g_subnet_id=None
 g_tenancy='default'
 g_vpc_id=None
 instance=None
-g_startup_script="""
+g_userdata="""
 #!/bin/bash
 yum update -y
 amazon-linux-extras install -y lamp-mariadb10.2-php7.2 php7.2
@@ -62,7 +62,6 @@ def create_vpc(client, name=g_project_name, cidr_ipv4=g_cidr_block, autoipv6=Fal
     """
     try:
         vpc = client.create_vpc(CidrBlock=g_cidr_block, AmazonProvidedIpv6CidrBlock=True, InstanceTenancy=tenancy, DryRun=mode)
-        ##vpc.create_tags(Tags=[{"Key": "project", "Value": g_project_name}])
         return vpc
     except Exception as err:
         handle(err)
@@ -74,7 +73,7 @@ def delete_vpc(client, vpc_id=g_vpc_id, mode=True):
     https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.delete_vpc
     """
     try:
-        print('Deleting %s' % vpc_id)
+        print('Deleting %s %s' % (vpc_id, '(dryrun)' if mode else ''))
         return client.delete_vpc(VpcId=vpc_id, DryRun=mode)
     except Exception as err:
         handle(err)
@@ -112,7 +111,7 @@ def delete_subnet(client, subnet=g_subnet_id, mode=True):
     https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.delete_subnet
     """
     try:
-        print('Deleting %s' % subnet)
+        print('Deleting %s %s' % (subnet, '(dryrun)' if mode else ''))
         return client.delete_subnet(SubnetId=subnet, DryRun=mode)
     except Exception as err:
         handle(err)
@@ -147,7 +146,7 @@ def delete_sg(client, groupid=g_sg_id, mode=True):
     See https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.delete_security_group
     """
     try:
-        print('Deleting %s' % groupid)
+        print('Deleting %s %s' % (groupid, '(dryrun)' if mode else ''))
         return client.delete_security_group( GroupId=groupid, DryRun=mode)
     except Exception as err:
         handle(err)
@@ -202,7 +201,7 @@ def delete_elastic_ip(client, allocation_id=g_elastic_ip_allocation_id, public_i
     https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.release_address
     """
     try:
-        print('Deleting %s %s' % (allocation_id, public_ip))
+        print('Deleting %s %s %s' % (allocation_id, public_ip, '(dryrun)' if mode else ''))
         return client.release_address( AllocationId=allocation_id, DryRun=mode)
     except Exception as err:
         handle(err)
@@ -233,7 +232,7 @@ def create_internet_gateway(client, mode=True):
     https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.create_internet_gateway
     """
     try:
-        client.create_internet_gateway(DryRun=mode)
+        return client.create_internet_gateway(DryRun=mode)
     except Exception as err:
         handle(err)
 
@@ -243,7 +242,7 @@ def delete_internet_gateway(client, gateway_id=g_internet_gateway_id, mode=True)
     https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.delete_internet_gateway
     """
     try:
-        print('Deleting %s' % gateway_id)
+        print('Deleting %s %s' % (gateway_id, '(dryrun)' if mode else ''))
         return client.delete_internet_gateway( gateway_id=g_internet_gateway_id, DryRun=mode)
     except Exception as err:
         handle(err)
@@ -264,7 +263,7 @@ def attach_internet_gateway(client, gateway_id=g_internet_gateway_id, vpc_id=g_v
     https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.attach_internet_gateway
     """
     try:
-        print('Attaching %s t0 %s' % ( gateway_id, vpc_id ))
+        print('Attaching %s to %s %s' % ( gateway_id, vpc_id, '(dryrun)' if mode else '' ))
         client.attach_internet_gateway( InternetGatewayId=gateway_id, VpcId=vpc_id, DryRun=mode)
     except Exception as err:
         handle(err)
@@ -280,7 +279,7 @@ def create_instance(image_id=g_ami, image_type=g_ami_type, sg_id=g_sg_id, sn_id=
     Launch a free tier Amazon Linux AMI using your Amazon credentials.
     """
     try:
-        print('Creating instance')
+        print('Creating instance %s' % '(dryrun)' if mode else '' )
         return ec2.create_instances(ImageId=image_id, MaxCount=1, MinCount=1, InstanceType=image_type, SecurityGroupIds=[sg_id,], SubnetId=sn_id, UserData=userdata, DryRun=mode)
     except Exception as err:
         handle(err)
@@ -291,6 +290,7 @@ def delete_instance(instance, instance_id=g_instance_id, mode=True):
     See https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.delete_security_group
     """
     try:
+        print('Terminating instance %s' % '(dryrun)' if mode else '' )
         instance.terminate(DryRun=mode)
         instance.wait_until_terminated(Filters=[{'Name': 'instance-id', 'Values': [instance_id,]},], DryRun=mode)
     except Exception as err:
@@ -309,17 +309,6 @@ def get_instances(client, name='tag:project', value=g_project_name, running=Fals
     except Exception as err:
         handle(err)
 
-def run_instance(client, image_id=g_ami, image_type=g_ami_type, sg_id=g_sg_id, sn_id=g_subnet_id, userdata='', mode=True):
-    """
-    Run an Amazon EC2 micro instance with boto3.
-    https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.run_instances
-    """
-    try:
-        return client.run_instances(ImageId=image_id, MaxCount=1, MinCount=1, InstanceType=image_type, SecurityGroupIds=[sg_id,], SubnetId=sn_id, UserData=userdata, DryRun=mode)
-    except Exception as err:
-        handle(err)
-
-
 
 client = boto3.client('ec2', region_name=g_region_name)
 ec2 = boto3.resource('ec2')
@@ -330,6 +319,7 @@ ec2 = boto3.resource('ec2')
 for mode in (True, False):
     try:
         #### VPC ####
+        print("\nCleanup EC2 Resources %s" % '(dryrun)' if mode else '')
         vpcs = get_vpcs(client, 'cidr', g_cidr_block, mode)
         if vpcs:
             for vpc in vpcs['Vpcs']:
@@ -371,6 +361,7 @@ for mode in (True, False):
         else:
             print('No existing VPC found %s' % '(dryrun)' if mode else '')
     except Exception as err:
+        print('Problem')
         handle(err)
 
 ##########################
@@ -378,6 +369,7 @@ for mode in (True, False):
 ##########################
 for mode in (True, False):
     try:
+        print("\nCreate EC2 Resources %s" % '(dryrun)' if mode else '')
         g_vpc_id = create_vpc(client, g_project_name, g_cidr_block, True, g_tenancy, mode)
         if g_vpc_id:
             g_vpc_id = g_vpc_id['Vpc']['VpcId']
@@ -407,13 +399,15 @@ for mode in (True, False):
                 g_elastic_ip_allocation_id = g_elastic_ip_allocation_id['AllocationId']
 
             ### EC2 INSTANCE ###
-            instance = create_instance(g_ami, g_ami_type, g_sg_id, g_subnet_id, g_startup_script, mode)
+            instance = create_instance(g_ami, g_ami_type, g_sg_id, g_subnet_id, g_userdata, mode)
             if instance and instance[0]:
                 g_instance_id = instance[0].id
             if g_instance_id:
                 instance = ec2.Instance(g_instance_id)
                 instance.wait_until_running(Filters=[{'Name': 'instance-id', 'Values': [g_instance_id,]},], DryRun=mode)
-                g_elastic_ip_association_id = associate_elastic_ip(client, g_elastic_ip_allocation_id, g_instance_id, mode)
+
+            #### ELASTIC IP ####
+            g_elastic_ip_association_id = associate_elastic_ip(client, g_elastic_ip_allocation_id, g_instance_id, mode)
             if g_elastic_ip_allocation_id:
                 g_elastic_ip_allocation_id = g_elastic_ip_allocation_id['AllocationId']
 
@@ -422,5 +416,6 @@ for mode in (True, False):
         print('created Security Group %s' % ('(dryrun)' if mode else g_sg_id))
         print('created Instance %s' % ('(dryrun)' if mode else g_instance_id))
     except Exception as err:
+        print('Problem')
         handle(err)
 
