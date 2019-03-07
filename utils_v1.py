@@ -10,6 +10,7 @@ g_elastic_ip_allocation_id=None
 g_elastic_ip_association_id=None
 g_group_name='mygroupname'
 g_instance_id=None
+g_internet_gateway_id=None
 g_project_name='assignment project'
 g_region_name='eu-west-1'
 g_sg_id=None
@@ -261,16 +262,13 @@ def get_internet_gateways(client, name='attachment.vpc-id', value=g_vpc_id, gate
     except Exception as err:
         handle(err)
 
-def attach_internet_gateway(client, gateway_id=g_internet_gateway_id, mode=True):
+def attach_internet_gateway(client, gateway_id=g_internet_gateway_id, vpc_id=g_vpc_id, mode=True):
     """
-    Get internet gateways IPs by searching for stuff
-    https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.describe_internet_gateways
+    Attaches an internet gateway to a VPC
+    https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.attach_internet_gateway
     """
     try:
-        if gateway_id:
-            return client.describe_internet_gateways(Filters=[{'Name': name, 'Values': [value,]},], InternetGatewayIds=[gateway_id,], DryRun=mode)
-        else:
-            return client.describe_internet_gateways(Filters=[{'Name': name, 'Values': [value,]},], DryRun=mode)
+        client.attach_internet_gateway( InternetGatewayId=gateway_id, VpcId=vpc_id, DryRun=mode)
     except Exception as err:
         handle(err)
 
@@ -328,69 +326,101 @@ def run_instance(client, image_id=g_ami, image_type=g_ami_type, sg_id=g_sg_id, s
 
 client = boto3.client('ec2', region_name=g_region_name)
 ec2 = boto3.resource('ec2')
-internet_gateway = ec2.InternetGateway('id')
 
+############################
 #### cleanup resources #####
+############################
 for mode in (True, False):
-    ##not working#vpcs = get_vpcs(client, 'tag:project', g_project_name, mode)
-    vpcs = get_vpcs(client, 'cidr', g_cidr_block, mode)
-    if vpcs:
-        for vpc in vpcs['Vpcs']:
-            g_vpc_id = vpc['VpcId'] 
-            instances = get_instances(client, 'vpc-id', g_vpc_id, False, mode)
-            if instances and "Reservations" in instances and instances['Reservations']:
-                for v in instances['Reservations'][0]['Instances']:
-                    g_instance_id = v['InstanceId']
-                    delete_instance(ec2.Instance(g_instance_id), g_instance_id, mode)
-            gateways = get_internet_gateways(
-            eips = get_elastic_ips(client, 'domain', 'vpc', None, g_instance_id, mode)
-            if eips:
-                for ip in eips['Addresses']:
-                    delete_elastic_ip(client, ip['AllocationId'], ip['PublicIp'], mode)
-            subnets = get_subnets(client, 'vpc-id', g_vpc_id, mode)
-            if subnets:
-                for sn in subnets['Subnets']:
-                    delete_subnet(client, sn['SubnetId'], mode)
-            sgs = get_sgs(client, 'vpc-id', g_vpc_id, g_group_name, mode)
-            if sgs and "SecurityGroups" in sgs and sgs["SecurityGroups"]:
-                for sg in sgs['SecurityGroups']:
-                    delete_sg(client, sg['GroupId'], mode)
-            delete_vpc(client, g_vpc_id, mode)
-    else:
-        print('No existing VPC found %s' % '(dryrun)' if mode else '')
+    try:
+        #### VPC ####
+        vpcs = get_vpcs(client, 'cidr', g_cidr_block, mode)
+        if vpcs:
+            for vpc in vpcs['Vpcs']:
+                g_vpc_id = vpc['VpcId'] 
 
-#### Create resources
+                ### EC2 INSTANCES ###
+                instances = get_instances(client, 'vpc-id', g_vpc_id, False, mode)
+                if instances and "Reservations" in instances and instances['Reservations']:
+                    for v in instances['Reservations'][0]['Instances']:
+                        g_instance_id = v['InstanceId']
+                        delete_instance(ec2.Instance(g_instance_id), g_instance_id, mode)
+
+                ### INTERNET GATEWAYS ### 
+                gateways = get_internet_gateways(
+
+                ### ELASTIC IPS ###
+                eips = get_elastic_ips(client, 'domain', 'vpc', None, g_instance_id, mode)
+                if eips:
+                    for ip in eips['Addresses']:
+                        delete_elastic_ip(client, ip['AllocationId'], ip['PublicIp'], mode)
+
+                ### SUBNETS ###
+                subnets = get_subnets(client, 'vpc-id', g_vpc_id, mode)
+                if subnets:
+                    for sn in subnets['Subnets']:
+                        delete_subnet(client, sn['SubnetId'], mode)
+
+                ### SECURITY GROUPS ###
+                sgs = get_sgs(client, 'vpc-id', g_vpc_id, g_group_name, mode)
+                if sgs and "SecurityGroups" in sgs and sgs["SecurityGroups"]:
+                    for sg in sgs['SecurityGroups']:
+                        delete_sg(client, sg['GroupId'], mode)
+
+                ### VPC ###
+                delete_vpc(client, g_vpc_id, mode)
+        else:
+            print('No existing VPC found %s' % '(dryrun)' if mode else '')
+    except Exception as err:
+        handle(err)
+
+##########################
+#### Create resources ####
+##########################
 for mode in (True, False):
-    g_vpc_id = create_vpc(client, g_project_name, g_cidr_block, True, g_tenancy, mode)
-    if g_vpc_id:
-        g_vpc_id = g_vpc_id['Vpc']['VpcId']
-        g_gateway_id = create_internet_gateway(client, mode)
-        if g_gateway_id:
-            g_gateway_id = g_gateway_id['InternetGateway']['InternetGatewayId']
-            
-        g_subnet_id = create_subnet(client, g_project_name, g_cidr_block, g_vpc_id, mode)
-        if g_subnet_id:
-            g_subnet_id = g_subnet_id['Subnet']['SubnetId']
-        g_sg_id = create_sg(client, g_project_name, g_group_name, g_vpc_id, mode)
-        if g_sg_id:
-            g_sg_id = g_sg_id['GroupId']
-            add_sg_ingress(client, 22, 22, 'TCP', [{'CidrIp': '0.0.0.0/0'},], [{'CidrIpv6': '::/0'},], g_sg_id, mode)
-            add_sg_ingress(client, 80, 80, 'TCP', [{'CidrIp': '0.0.0.0/0'},], [{'CidrIpv6': '::/0'},], g_sg_id, mode)
-            add_sg_ingress(client, 443, 443, 'TCP', [{'CidrIp': '0.0.0.0/0'},], [{'CidrIpv6': '::/0'},], g_sg_id, mode)
-        g_elastic_ip_allocation_id = create_elastic_ip(client, 'vpc', mode)
-        if g_elastic_ip_allocation_id:
-            g_elastic_ip_allocation_id = g_elastic_ip_allocation_id['AllocationId']
-        instance = create_instance(g_ami, g_ami_type, g_sg_id, g_subnet_id, g_startup_script, mode)
-        if instance and instance[0]:
-            g_instance_id = instance[0].id
-        if g_instance_id:
-            instance = ec2.Instance(g_instance_id)
-            instance.wait_until_running(Filters=[{'Name': 'instance-id', 'Values': [g_instance_id,]},], DryRun=mode)
-            g_elastic_ip_association_id = associate_elastic_ip(client, g_elastic_ip_allocation_id, g_instance_id, mode)
-        if g_elastic_ip_allocation_id:
-            g_elastic_ip_allocation_id = g_elastic_ip_allocation_id['AllocationId']
+    try:
+        g_vpc_id = create_vpc(client, g_project_name, g_cidr_block, True, g_tenancy, mode)
+        if g_vpc_id:
+            g_vpc_id = g_vpc_id['Vpc']['VpcId']
 
-    print('created VPC %s' % ('(dryrun)' if mode else g_vpc_id))
-    print('created Subnet %s' % ('(dryrun)' if mode else g_subnet_id))
-    print('created Security Group %s' % ('(dryrun)' if mode else g_sg_id))
-    print('created Instance %s' % ('(dryrun)' if mode else g_instance_id))
+            ### INTERNET GATEWAY
+            g_gateway_id = create_internet_gateway(client, mode)
+            if g_gateway_id:
+                g_gateway_id = g_gateway_id['InternetGateway']['InternetGatewayId']
+                attach_internet_gateway(client, g_gateway_id, g_vpc_id, mode) 
+
+            ### SUBNET ###
+            g_subnet_id = create_subnet(client, g_project_name, g_cidr_block, g_vpc_id, mode)
+            if g_subnet_id:
+                g_subnet_id = g_subnet_id['Subnet']['SubnetId']
+
+            ### SECURITY GROUP ###
+            g_sg_id = create_sg(client, g_project_name, g_group_name, g_vpc_id, mode)
+            if g_sg_id:
+                g_sg_id = g_sg_id['GroupId']
+                add_sg_ingress(client, 22, 22, 'TCP', [{'CidrIp': '0.0.0.0/0'},], [{'CidrIpv6': '::/0'},], g_sg_id, mode)
+                add_sg_ingress(client, 80, 80, 'TCP', [{'CidrIp': '0.0.0.0/0'},], [{'CidrIpv6': '::/0'},], g_sg_id, mode)
+                add_sg_ingress(client, 443, 443, 'TCP', [{'CidrIp': '0.0.0.0/0'},], [{'CidrIpv6': '::/0'},], g_sg_id, mode)
+
+            ### ELASTIC IP ###
+            g_elastic_ip_allocation_id = create_elastic_ip(client, 'vpc', mode)
+            if g_elastic_ip_allocation_id:
+                g_elastic_ip_allocation_id = g_elastic_ip_allocation_id['AllocationId']
+
+            ### EC2 INSTANCE ###
+            instance = create_instance(g_ami, g_ami_type, g_sg_id, g_subnet_id, g_startup_script, mode)
+            if instance and instance[0]:
+                g_instance_id = instance[0].id
+            if g_instance_id:
+                instance = ec2.Instance(g_instance_id)
+                instance.wait_until_running(Filters=[{'Name': 'instance-id', 'Values': [g_instance_id,]},], DryRun=mode)
+                g_elastic_ip_association_id = associate_elastic_ip(client, g_elastic_ip_allocation_id, g_instance_id, mode)
+            if g_elastic_ip_allocation_id:
+                g_elastic_ip_allocation_id = g_elastic_ip_allocation_id['AllocationId']
+
+        print('created VPC %s' % ('(dryrun)' if mode else g_vpc_id))
+        print('created Subnet %s' % ('(dryrun)' if mode else g_subnet_id))
+        print('created Security Group %s' % ('(dryrun)' if mode else g_sg_id))
+        print('created Instance %s' % ('(dryrun)' if mode else g_instance_id))
+    except Exception as err:
+        handle(err)
+
