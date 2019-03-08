@@ -217,7 +217,7 @@ def associate_route_table(client, route_table_id=ec2_route_table_id, subnet_id=e
     https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.associate_route_table
     """
     try:
-        return client.associate_address( RouteTableId=route_table_id, SubnetId=subnet_id, DryRun=mode)
+        return client.associate_route_table( RouteTableId=route_table_id, SubnetId=subnet_id, DryRun=mode)
     except Exception as err:
         handle(err)
 
@@ -227,7 +227,7 @@ def disassociate_route_table(client, association_id=ec2_route_table_association_
     https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.disassociate_route_table
     """
     try:
-        print('Delete %s %s' % (association_id, ('(dryrun)' if mode else '')))
+        print('Disassociate %s %s' % (association_id, ('(dryrun)' if mode else '')))
         client.disassociate_route_table( AssociationId=association_id, DryRun=mode)
     except Exception as err:
         handle(err)
@@ -333,7 +333,6 @@ def get_internet_gateways(client, name='attachment.vpc-id', value=ec2_vpc_id, mo
     https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.describe_internet_gateways
     """
     try:
-        print('hereee')
         return client.describe_internet_gateways(Filters=[{'Name': name, 'Values': [value,]},], DryRun=mode)
     except Exception as err:
         handle(err)
@@ -413,7 +412,7 @@ def clean(ec2, client):
             vpcs = get_vpcs(client, 'cidr', ec2_cidr_block, mode)
             if vpcs and "Vpcs" in vpcs and vpcs['Vpcs']:
                 for vpc in vpcs['Vpcs']:
-                    ec2_vpc_id = vpc['VpcId'] 
+                    ec2_vpc_id = vpc['VpcId']
 
                     ### EC2 INSTANCES ###
                     instances = get_instances(client, 'vpc-id', ec2_vpc_id, False, mode)
@@ -421,7 +420,7 @@ def clean(ec2, client):
                         for ins in instances['Reservations'][0]['Instances']:
                             eips = get_elastic_ips(client, 'domain', 'vpc', ins['InstanceId'], mode)
                             delete_instance(ec2.Instance(ins['InstanceId']), ins['InstanceId'], mode)
-    
+
                             ### ELASTIC IPS ###
                             if eips and "Addresses" in eips and eips['Addresses']:
                                 for ip in eips['Addresses']:
@@ -436,25 +435,23 @@ def clean(ec2, client):
                     if subnets and "Subnets" in subnets and subnets['Subnets']:
                         for sn in subnets['Subnets']:
                             delete_subnet(client, sn['SubnetId'], mode)
+
+                            ### ROUTE TABLE ###
+                            route_tables = get_route_tables(client, 'vpc-id', ec2_vpc_id, mode)
+                            if route_tables and "RouteTables" in route_tables and route_tables['RouteTables']:
+                                for rt in route_tables['RouteTables']:
+                                    disassociate_route_table(client, rt['RouteTableAssociationId'], mode)
+                                    delete_route_table(client, rt['RouteTableId'], mode)
+                            else:
+                                print('No route tables detected')
                     else:
                         print('No subnets detected')
-
-                    ### ROUTE TABLES ###
-                    route_tables = get_route_tables(client, 'vpc-id', ec2_vpc_id, mode)
-                    if route_tables and "RouteTables" in route_tables and route_tables['RouteTables']:
-                        if ec2_route_table_association_id:
-                            disassociate_route_table(client, ec2_route_table_association_id, ec2_subnet_id, mode) 
-                        for rt in route_tables['RouteTables']:
-                            delete_route_table(client, rt['RouteTableId'], mode)
-                    else:
-                        print('No route tables detected')
 
                     ### INTERNET GATEWAY ###
                     gateways = get_internet_gateways(client, 'attachment.vpc-id', ec2_vpc_id, mode)
                     if gateways and "InternetGateways" in gateways:
-                        print('here5')
                         for igw in gateways['InternetGateways']:
-                            detach_internet_gateway(client, igw['InternetGatewayId'], ec2_vpc_id, mode) 
+                            detach_internet_gateway(client, igw['InternetGatewayId'], ec2_vpc_id, mode)
                             delete_internet_gateway(client, igw['InternetGatewayId'], mode)
                     else:
                         print('No internet gateways detected')
@@ -488,7 +485,7 @@ def start(ec2, client):
                 ec2_gateway_id = create_internet_gateway(client, mode)
                 if ec2_gateway_id:
                     ec2_gateway_id = ec2_gateway_id['InternetGateway']['InternetGatewayId']
-                    attach_internet_gateway(client, ec2_gateway_id, ec2_vpc_id, mode) 
+                    attach_internet_gateway(client, ec2_gateway_id, ec2_vpc_id, mode)
 
                 ### SUBNET ###
                 ec2_subnet_id = create_subnet(client, ec2_project_name, ec2_cidr_block, ec2_vpc_id, mode)
@@ -550,7 +547,7 @@ def info(ec2, client):
                 print("KeyName: %s, KeyFingerprint: %s" % (key['KeyName'], key['KeyFingerprint']))
     except Exception as err:
         handle(err)
-    
+
 
 #############
 ### MAIN ####
