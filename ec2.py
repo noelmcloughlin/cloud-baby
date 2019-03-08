@@ -61,7 +61,7 @@ def handle(error):
         else:
             print("Failed with %s" % error)
     except AttributeError as err:
-        print('Something went wrong %s' % err)
+        print('Something went wrong %s %s' % (error, err))
     exit(1)
 
 #################
@@ -243,16 +243,13 @@ def delete_route_table(client, route_table_id=ec2_route_table_id, mode=True):
     except Exception as err:
         handle(err)
 
-def get_route_tables(client, name='vpc-id', value=ec2_vpc_id, association_id=ec2_route_table_association_id, mode=True):
+def get_route_tables(client, name='vpc-id', value=ec2_vpc_id, mode=True):
     """
     Get route tables by searching for vpc
     https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.describe_route_tables
     """
     try:
-        if association_id:
-            return client.describe_route_tables(Filters=[{'Name': 'association.route-table-association-id', 'Values': [association_id,]},], DryRun=mode)
-        else:
-            response = client.describe_route_tables(Filters=[{'Name': name, 'Values': [value,]},], DryRun=mode)
+        return client.describe_route_tables(Filters=[{'Name': name, 'Values': [value,]},], DryRun=mode)
     except Exception as err:
         handle(err)
 
@@ -336,6 +333,7 @@ def get_internet_gateways(client, name='attachment.vpc-id', value=ec2_vpc_id, mo
     https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.describe_internet_gateways
     """
     try:
+        print('hereee')
         return client.describe_internet_gateways(Filters=[{'Name': name, 'Values': [value,]},], DryRun=mode)
     except Exception as err:
         handle(err)
@@ -420,38 +418,50 @@ def clean(ec2, client):
                     ### EC2 INSTANCES ###
                     instances = get_instances(client, 'vpc-id', ec2_vpc_id, False, mode)
                     if instances and "Reservations" in instances and instances['Reservations']:
-                        for v in instances['Reservations'][0]['Instances']:
-                            eips = get_elastic_ips(client, 'domain', 'vpc', v['InstanceId'], mode)
-                            delete_instance(ec2.Instance(v['InstanceId']), v['InstanceId'], mode)
+                        for ins in instances['Reservations'][0]['Instances']:
+                            eips = get_elastic_ips(client, 'domain', 'vpc', ins['InstanceId'], mode)
+                            delete_instance(ec2.Instance(ins['InstanceId']), ins['InstanceId'], mode)
     
                             ### ELASTIC IPS ###
                             if eips and "Addresses" in eips and eips['Addresses']:
                                 for ip in eips['Addresses']:
                                     release_elastic_ip(client, ip['AllocationId'], ip['PublicIp'], mode)
+                            else:
+                                print('No elastic ips detected')
+                    else:
+                        print('No ec2 instances detected')
 
                     ### SUBNETS ###
                     subnets = get_subnets(client, 'vpc-id', ec2_vpc_id, mode)
                     if subnets and "Subnets" in subnets and subnets['Subnets']:
                         for sn in subnets['Subnets']:
                             delete_subnet(client, sn['SubnetId'], mode)
+                    else:
+                        print('No subnets detected')
 
                     ### ROUTE TABLES ###
-                    route_tables = get_route_tables(client, 'vpc-id', ec2_vpc_id, ec2_route_table_association_id, mode)
+                    route_tables = get_route_tables(client, 'vpc-id', ec2_vpc_id, mode)
                     if route_tables and "RouteTables" in route_tables and route_tables['RouteTables']:
+                        if ec2_route_table_association_id:
+                            disassociate_route_table(client, ec2_route_table_association_id, ec2_subnet_id, mode) 
                         for rt in route_tables['RouteTables']:
-                            disassociate_route_table(client, v['InternetGatewayId'], ec2_subnet_id, mode) 
                             delete_route_table(client, rt['RouteTableId'], mode)
+                    else:
+                        print('No route tables detected')
 
                     ### INTERNET GATEWAY ###
                     gateways = get_internet_gateways(client, 'attachment.vpc-id', ec2_vpc_id, mode)
-                    if gateways and "InternetGateways" in gateways and gateways['InternetGateways']:
-                        for v in gateways['InternetGateways']:
-                            detach_internet_gateway(client, v['InternetGatewayId'], ec2_vpc_id, mode) 
-                            delete_internet_gateway(client, v['InternetGatewayId'], mode)
+                    if gateways and "InternetGateways" in gateways:
+                        print('here5')
+                        for igw in gateways['InternetGateways']:
+                            detach_internet_gateway(client, igw['InternetGatewayId'], ec2_vpc_id, mode) 
+                            delete_internet_gateway(client, igw['InternetGatewayId'], mode)
+                    else:
+                        print('No internet gateways detected')
 
                     ### SECURITY GROUPS ###
                     sgs = get_sgs(client, 'vpc-id', ec2_vpc_id, ec2_group_name, mode)
-                    if sgs and "SecurityGroups" in sgs and sgs["SecurityGroups"]:
+                    if sgs and "SecurityGroups" in sgs:
                         for sg in sgs['SecurityGroups']:
                             delete_sg(client, sg['GroupId'], mode)
 
@@ -512,7 +522,7 @@ def start(ec2, client):
                         instance.wait_until_running(Filters=[{'Name': 'instance-id', 'Values': [ec2_instance_id,]},], DryRun=mode)
 
                         #### ELASTIC IP ASSOCIATION  ####
-                        ec2_elastic_ip_association_id = associate_elastic_ip(client, ec2_elastic_ip_id, ec2_instance_id, mode)
+                        ec2_elastic_ip_association_id = associate_elastic_ip(client, ec2_elastic_ip_allocation_id, ec2_instance_id, mode)
                         if ec2_elastic_ip_association_id:
                             ec2_elastic_ip_association_id = ec2_elastic_ip_association_id['AssociationId']
 
