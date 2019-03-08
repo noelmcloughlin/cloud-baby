@@ -20,6 +20,8 @@ ec2_instance_id=None
 ec2_internet_gateway_id=None
 ec2_project_name='assignment project'
 ec2_region_name='eu-west-1'
+ec2_route_table_id=None
+ec2_route_table_association_id=None
 ec2_sg_id=None
 ec2_subnet_id=None
 ec2_tenancy='default'
@@ -196,6 +198,65 @@ def add_sg_ingress(client, fromport=80, toport=80, ipprotocol='TCP', ipranges=[{
         handle(err)
 
 ###################
+### ROUTE TABLE ###
+###################
+
+def create_route_table(client, vpc_id=ec2_vpc_id, mode=True):
+    """
+    Create route table.
+    https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.create_route_table
+    """
+    try:
+        return client.create_route_table( VpcId=vpc_id, DryRun=mode)
+    except Exception as err:
+        handle(err)
+
+def associate_route_table(client, route_table_id=ec2_route_table_id, subnet_id=ec2_subnet_id, mode=True):
+    """
+    Associate route table with subnet
+    https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.associate_route_table
+    """
+    try:
+        return client.associate_address( RouteTableId=route_table_id, SubnetId=subnet_id, DryRun=mode)
+    except Exception as err:
+        handle(err)
+
+def disassociate_route_table(client, association_id=ec2_route_table_association_id, mode=True):
+    """
+    Disassociate a route table.
+    https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.disassociate_route_table
+    """
+    try:
+        print('Delete %s %s' % (association_id, ('(dryrun)' if mode else '')))
+        client.disassociate_route_table( AssociationId=association_id, DryRun=mode)
+    except Exception as err:
+        handle(err)
+
+def delete_route_table(client, route_table_id=ec2_route_table_id, mode=True):
+    """
+    Delete a route table.
+    https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.delete_route_table
+    """
+    try:
+        print('Deleting %s %s' % (route_table_id, ('(dryrun)' if mode else '')))
+        client.delete_route_table( RouteTableId=route_table_id, DryRun=mode)
+    except Exception as err:
+        handle(err)
+
+def get_route_tables(client, name='vpc-id', value=ec2_vpc_id, association_id=ec2_route_table_association_id, mode=True):
+    """
+    Get route tables by searching for vpc
+    https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.describe_route_tables
+    """
+    try:
+        if association_id:
+            return client.describe_route_tables(Filters=[{'Name': 'association.route-table-association-id', 'Values': [association_id,]},], DryRun=mode)
+        else:
+            response = client.describe_route_tables(Filters=[{'Name': name, 'Values': [value,]},], DryRun=mode)
+    except Exception as err:
+        handle(err)
+
+###################
 ### ELASTIC IPS ###
 ###################
 
@@ -211,7 +272,7 @@ def create_elastic_ip(client, domain='vpc', mode=True):
 
 def associate_elastic_ip(client, allocation_id=ec2_elastic_ip_allocation_id, instance_id=ec2_instance_id, mode=True):
     """
-    Associate elastic ip.
+    Associate elastic ip with ec2_instance
     https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.associate_address
     """
     try:
@@ -219,7 +280,7 @@ def associate_elastic_ip(client, allocation_id=ec2_elastic_ip_allocation_id, ins
     except Exception as err:
         handle(err)
 
-def delete_elastic_ip(client, allocation_id=ec2_elastic_ip_allocation_id, public_ip='', mode=True):
+def release_elastic_ip(client, allocation_id=ec2_elastic_ip_allocation_id, public_ip='', mode=True):
     """
     Delete a elastic ip.
     https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.release_address
@@ -230,16 +291,14 @@ def delete_elastic_ip(client, allocation_id=ec2_elastic_ip_allocation_id, public
     except Exception as err:
         handle(err)
 
-def get_elastic_ips(client, name='domain', value='vpc', allocation_id=ec2_elastic_ip_allocation_id, instance_id=ec2_instance_id, mode=True):
+def get_elastic_ips(client, name='vpc-id', value='vpc', instance_id=ec2_instance_id, mode=True):
     """
     Get Elastic IPs by searching for stuff
     https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.describe_addresses
     """
     try:
-        if allocation_id:
-            return client.describe_addresses(Filters=[{'Name': name, 'Values': [value,]},], AllocationIds=[allocation_id,], DryRun=mode)
-        elif instance_id:
-            return client.describe_addresses(Filters=[{'Name': name, 'Values': [value,]}, {'Name': 'instance-id', 'Values': [instance_id,]},], DryRun=mode)
+        if instance_id:
+            return client.describe_addresses(Filters=[{'Name': 'instance-id', 'Values': [instance_id,]},], DryRun=mode)
         else:
             return client.describe_addresses(Filters=[{'Name': name, 'Values': [value,]},], DryRun=mode)
     except Exception as err:
@@ -352,7 +411,7 @@ def clean(ec2, client):
     for mode in (True, False):
         try:
             #### VPC ####
-            print("\nCLEAN DOWN E2C ENVIRON %s" % ('dryrun' if mode else 'for real, please be patient'))
+            print("\nCLEAN DOWN EC2 ENVIRON %s" % ('dryrun' if mode else 'for real, please be patient'))
             vpcs = get_vpcs(client, 'cidr', ec2_cidr_block, mode)
             if vpcs and "Vpcs" in vpcs and vpcs['Vpcs']:
                 for vpc in vpcs['Vpcs']:
@@ -362,19 +421,26 @@ def clean(ec2, client):
                     instances = get_instances(client, 'vpc-id', ec2_vpc_id, False, mode)
                     if instances and "Reservations" in instances and instances['Reservations']:
                         for v in instances['Reservations'][0]['Instances']:
-                            eips = get_elastic_ips(client, 'domain', 'vpc', None, v['InstanceId'], mode)
+                            eips = get_elastic_ips(client, 'domain', 'vpc', v['InstanceId'], mode)
                             delete_instance(ec2.Instance(v['InstanceId']), v['InstanceId'], mode)
     
                             ### ELASTIC IPS ###
                             if eips and "Addresses" in eips and eips['Addresses']:
                                 for ip in eips['Addresses']:
-                                    delete_elastic_ip(client, ip['AllocationId'], ip['PublicIp'], mode)
+                                    release_elastic_ip(client, ip['AllocationId'], ip['PublicIp'], mode)
 
                     ### SUBNETS ###
                     subnets = get_subnets(client, 'vpc-id', ec2_vpc_id, mode)
                     if subnets and "Subnets" in subnets and subnets['Subnets']:
                         for sn in subnets['Subnets']:
                             delete_subnet(client, sn['SubnetId'], mode)
+
+                    ### ROUTE TABLES ###
+                    route_tables = get_route_tables(client, 'vpc-id', ec2_vpc_id, ec2_route_table_association_id, mode)
+                    if route_tables and "RouteTables" in route_tables and route_tables['RouteTables']:
+                        for rt in route_tables['RouteTables']:
+                            disassociate_route_table(client, v['InternetGatewayId'], ec2_subnet_id, mode) 
+                            delete_route_table(client, rt['RouteTableId'], mode)
 
                     ### INTERNET GATEWAY ###
                     gateways = get_internet_gateways(client, 'attachment.vpc-id', ec2_vpc_id, mode)
@@ -403,7 +469,7 @@ def clean(ec2, client):
 def start(ec2, client):
     for mode in (True, False):
         try:
-            print("\nCREATE E2C ENVIRON %s" % ('dryrun' if mode else 'for real, please be patient'))
+            print("\nCREATE EC2 ENVIRON %s" % ('dryrun' if mode else 'for real, please be patient'))
             ec2_vpc_id = create_vpc(client, ec2_project_name, ec2_cidr_block, True, ec2_tenancy, mode)
             if ec2_vpc_id:
                 ec2_vpc_id = ec2_vpc_id['Vpc']['VpcId']
@@ -419,6 +485,16 @@ def start(ec2, client):
                 if ec2_subnet_id:
                     ec2_subnet_id = ec2_subnet_id['Subnet']['SubnetId']
 
+                ### ROUTE TABLE ###
+                ec2_route_table_id = create_route_table(client, ec2_vpc_id, mode)
+                if ec2_route_table_id:
+                    ec2_route_table_id = ec2_route_table_id['RouteTable']['RouteTableId']
+
+                ### ELASTIC IP ###
+                ec2_elastic_ip_allocation_id = create_elastic_ip(client, 'vpc', mode)
+                if ec2_elastic_ip_allocation_id:
+                    ec2_elastic_ip_allocation_id = ec2_elastic_ip_allocation_id['AllocationId']
+
                 ### SECURITY GROUP ###
                 ec2_sg_id = create_sg(client, ec2_project_name, ec2_group_name, ec2_vpc_id, mode)
                 if ec2_sg_id:
@@ -426,11 +502,6 @@ def start(ec2, client):
                     add_sg_ingress(client, 22, 22, 'TCP', [{'CidrIp': '0.0.0.0/0'},], [{'CidrIpv6': '::/0'},], ec2_sg_id, mode)
                     add_sg_ingress(client, 80, 80, 'TCP', [{'CidrIp': '0.0.0.0/0'},], [{'CidrIpv6': '::/0'},], ec2_sg_id, mode)
                     add_sg_ingress(client, 443, 443, 'TCP', [{'CidrIp': '0.0.0.0/0'},], [{'CidrIpv6': '::/0'},], ec2_sg_id, mode)
-
-                ### ELASTIC IP ###
-                ec2_elastic_ip_allocation_id = create_elastic_ip(client, 'vpc', mode)
-                if ec2_elastic_ip_allocation_id:
-                    ec2_elastic_ip_allocation_id = ec2_elastic_ip_allocation_id['AllocationId']
 
                 ### EC2 INSTANCE ###
                 instance = create_instance(ec2, ec2_ami, ec2_ami_type, ec2_sg_id, ec2_subnet_id, ec2_userdata, ec2_keypair_name, mode)
@@ -441,9 +512,14 @@ def start(ec2, client):
                         instance.wait_until_running(Filters=[{'Name': 'instance-id', 'Values': [ec2_instance_id,]},], DryRun=mode)
 
                         #### ELASTIC IP ASSOCIATION  ####
-                        ec2_elastic_ip_association_id = associate_elastic_ip(client, ec2_elastic_ip_allocation_id, ec2_instance_id, mode)
+                        ec2_elastic_ip_association_id = associate_elastic_ip(client, ec2_elastic_ip_id, ec2_instance_id, mode)
                         if ec2_elastic_ip_association_id:
                             ec2_elastic_ip_association_id = ec2_elastic_ip_association_id['AssociationId']
+
+                        #### ROUTE TABLE ASSOCIATION  ####
+                        ec2_route_table_association_id = associate_route_table(client, ec2_route_table_id, ec2_subnet_id, mode)
+                        if ec2_route_table_association_id:
+                            ec2_route_table_association_id = ec2_route_table_association_id['AssociationId']
 
                 print('created VPC %s' % ('(dryrun)' if mode else ec2_vpc_id))
                 print('created Subnet %s' % ('(dryrun)' if mode else ec2_subnet_id))
