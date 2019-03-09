@@ -11,6 +11,7 @@ ec2_group_name='mygroupname'
 ec2_instance_id=None
 ec2_project_name='assignment project'
 ec2_region_name='eu-west-1'
+
 ec2_userdata="""
 #!/bin/bash
 yum update -y
@@ -56,13 +57,13 @@ def handle(error=None, resource=None):
 ### KEYPAIRS ###
 #################
 
-def get_keypairs(client, name='key-name', values=[ec2_keypair_name,], mode=True):
+def get_keypairs(client, values=[ec2_keypair_name,], mode=True):
     """
     Get keypairs
     https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.describe_key_pairs
     """
     try:
-        return client.describe_key_pairs(Filters=[{'Name': name, 'Values': values}], DryRun=mode)
+        return client.describe_key_pairs(Filters=[{'Name': 'key-name', 'Values': values}], DryRun=mode)
     except Exception as err:
         handle(err)
 
@@ -244,9 +245,8 @@ def create_nat_gateway(client, allocation_id, subnet_id, mode=True):
     https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.create_nat_gateway
     """
     try:
-        if not mode:
-            response = client.create_nat_gateway( AllocationId=allocation_id, SubnetId=subnet_id)
-        print('Created nat gateway for %s %s' % (subnet_id, ('(dryrun)' if mode else '')))
+        response = client.create_nat_gateway( AllocationId=allocation_id, SubnetId=subnet_id)
+        print('Created nat gateway for subnet %s %s' % (subnet_id, ('(dryrun)' if mode else '')))
         return response
     except Exception as err:
         handle(err)
@@ -257,21 +257,19 @@ def delete_nat_gateway(client, nat_gw_id, mode=True, response=None):
     https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.delete_nat_gateway
     """
     try:
-        if not mode:
-            response = client.delete_nat_gateway( NatGatewayId=nat_gw_id)
-            print('Deleted nat gateway for %s %s' % (nat_gw_id, ('(dryrun)' if mode else '')))
+        response = client.delete_nat_gateway( NatGatewayId=nat_gw_id)
+        print('Deleted nat gateway for subnet %s %s' % (nat_gw_id, ('(dryrun)' if mode else '')))
         return response
     except Exception as err:
         handle(err)
 
-def get_nat_gateways(client, name='vpc-id', values=[], mode=True):
+def get_nat_gateways(client, name, values, mode=True):
     """
     Get nat gateways by searching for vpc
     https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.describe_nat_gateways
     """
     try:
-        if not mode:
-            return client.describe_nat_gateways(Filters=[{'Name': name, 'Values': values},])
+        return client.describe_nat_gateways(Filters=[{'Name': name, 'Values': values},])
     except Exception as err:
         handle(err)
 
@@ -327,13 +325,13 @@ def delete_route_table(client, route_table_id, mode=True):
     except Exception as err:
         handle(err)
 
-def get_route_tables(client, name='vpc-id', values=[], mode=True):
+def get_route_tables(client, name, values, mode=True):
     """
     Get route tables by searching for vpc
     https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.describe_route_tables
     """
     try:
-        return client.describe_route_tables(Filters=[{'Name': name, 'Values': values},], DryRun=mode)
+        return client.describe_route_tables(Filters=[{'Name': name, 'Values': values}, {'Name': 'association.main', 'Values': ['False',]}], DryRun=mode)
     except Exception as err:
         handle(err)
 
@@ -393,13 +391,13 @@ def delete_network_acl(client, network_acl_id, mode=True):
     except Exception as err:
         handle(err)
 
-def get_network_acls(client, name='vpc-id', values=[], mode=True):
+def get_network_acls(client, name, values, mode=True):
     """
     Get network acls by searching for stuff
     https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.describe_network_acls
     """
     try:
-        return client.describe_network_acls(Filters=[{'Name': name, 'Values': values}, {'Name':'default', 'Values':['False']}], DryRun=mode)
+        return client.describe_network_acls(Filters=[{'Name': name, 'Values':values}, {'Name':'default','Values':['False']}], DryRun=mode)
     except Exception as err:
         handle(err)
 
@@ -497,7 +495,7 @@ def delete_internet_gateway(client, gateway_id, mode=True):
     except Exception as err:
         handle(err)
 
-def get_internet_gateways(client, name='attachment.vpc-id', values=[], mode=True):
+def get_internet_gateways(client, name, values, mode=True):
     """
     Get internet gateways IPs by searching for stuff
     https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.describe_internet_gateways
@@ -543,12 +541,12 @@ def create_instance(ec2, sg_id, sn_id, image_id=ec2_ami, image_type=ec2_ami_type
     """
     try:
         response = ec2.create_instances(ImageId=image_id, MaxCount=1, MinCount=1, InstanceType=image_type, SecurityGroupIds=[sg_id,], SubnetId=sn_id, UserData=userdata, KeyName=key, DryRun=mode)
-        print('Created instance %s' % ('(dryrun)' if mode else '') )
+        print('Creating instance %s' % ('(dryrun)' if mode else '') )
         return response
     except Exception as err:
         handle(err)
 
-def delete_instance(instance, instances=[], mode=True):
+def delete_instance(instance, instances, mode=True):
     """
     Delete a ec2 instance
     See https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.delete_security_group
@@ -561,7 +559,7 @@ def delete_instance(instance, instances=[], mode=True):
     except Exception as err:
         handle(err)
 
-def get_instances(client, name='tag:project', values=[ec2_project_name,], mode=True):
+def get_instances(client, name, values, mode=True):
     """
     Get EC2 instances by searching for stuff
     https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.describe_instances
@@ -600,12 +598,12 @@ def clean(ec2, client):
                             else:
                                 print('No elastic ips detected')
 
-                            delete_instance( ec2.Instance(ec2_instance_id), ec2_instance_id, mode)
+                            delete_instance( ec2.Instance(ec2_instance_id), [ec2_instance_id,], mode)
                     else:
                         print('No ec2 instances detected')
 
                     ### SECURITY GROUPS ###
-                    sgs = get_sgs(client, 'vpc-id', ec2_vpc_id, [ec2_group_name,], mode)
+                    sgs = get_sgs(client, 'vpc-id', [ec2_vpc_id,], [ec2_group_name,], mode)
                     if sgs and "SecurityGroups" in sgs and sgs['SecurityGroups']:
                         for sg in sgs['SecurityGroups']:
                             revoke_sg_ingress(client, 22, 22, 'TCP',   sg['GroupId'], [{'CidrIp': '0.0.0.0/0'},], [], mode)
@@ -627,14 +625,6 @@ def clean(ec2, client):
                     else:
                         print('No internet gateways detected')
 
-                    ### NAT GATEWAY ###
-                    gateways = get_nat_gateways(client, 'vpc-id', [ec2_vpc_id,], mode)
-                    if gateways and "NatGateways" in gateways and gateways['NatGateways']:
-                        for ngw in gateways['NatGateways']:
-                            delete_nat_gateway(client, ngw['NatGatewayId'], mode)
-                    else:
-                        print('No nat gateways detected')
-
                     ### SUBNETS ###
                     subnets = get_subnets(client, 'vpc-id', [ec2_vpc_id,], mode)
                     if subnets and "Subnets" in subnets and subnets['Subnets']:
@@ -642,6 +632,14 @@ def clean(ec2, client):
                             delete_subnet(client, sn['SubnetId'], mode)
                     else:
                         print('No subnets detected')
+
+                    ### NAT GATEWAY ###
+                    gateways = get_nat_gateways(client, 'vpc-id', [ec2_vpc_id,], mode)
+                    if gateways and "NatGateways" in gateways and gateways['NatGateways']:
+                        for ngw in gateways['NatGateways']:
+                            delete_nat_gateway(client, ngw['NatGatewayId'], mode)
+                    else:
+                        print('No nat gateways detected')
 
                     ### NETWORK ACLS ###
                     acls = get_network_acls(client, 'vpc-id', [ec2_vpc_id,], mode)
@@ -710,13 +708,12 @@ def start(ec2, client):
                         ec2_elastic_ip_allocation_id = ec2_elastic_ip_allocation_id['AllocationId']
 
                         ### NAT GATEWAY
-                        ec2_nat_gw_id = create_nat_gateway(client, ec2_elastic_ip_allocation_id, ec2_subnet_id, mode)
-                        if ec2_nat_gw_id:
-                            ec2_nat_gw_id = ec2_nat_gw_id['NatGateway']['NatGatewayId']
+                        #ec2_nat_gw_id = create_nat_gateway(client, ec2_elastic_ip_allocation_id, ec2_subnet_id, mode)
+                        #if ec2_nat_gw_id:
+                        #    ec2_nat_gw_id = ec2_nat_gw_id['NatGateway']['NatGatewayId']
 
                 ### SECURITY GROUP ###
                 ec2_sg_id = create_sg(client, ec2_vpc_id, ec2_project_name, ec2_group_name, mode)
-                print(ec2_sg_id)
                 if ec2_sg_id:
                     ec2_sg_id = ec2_sg_id['GroupId']
                     authorize_sg_ingress(client, 22, 22, 'TCP',   ec2_sg_id, [{'CidrIp': '0.0.0.0/0'},], [{'CidrIpv6': '::/0'},], mode)
@@ -754,7 +751,7 @@ def start(ec2, client):
 def info(ec2, client):
     ### KEY PAIR ###
     try:
-        response = get_keypairs(client, 'key-name', [ec2_keypair_name,], False)
+        response = get_keypairs(client, [ec2_keypair_name,], False)
         if response and "KeyPairs" in response:
             for key in response['KeyPairs']:
                 print("KeyName: %s, KeyFingerprint: %s" % (key['KeyName'], key['KeyFingerprint']))
