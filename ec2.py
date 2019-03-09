@@ -431,6 +431,18 @@ def associate_elastic_ip(client, allocation_id, instance_id, mode=True):
     except Exception as err:
         handle(err)
 
+def disassociate_elastic_ip(client, association_id, mode=True):
+    """
+    Disassociate elastic ip with ec2_instance
+    https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.disassociate_address
+    """
+    try:
+        response = client.disassociate_address( AssociationId=association_id, DryRun=mode)
+        print('Disassociated elastic ip %s %s' % (association_id, '(dryrun)' if mode else ''))
+        return response
+    except Exception as err:
+        handle(err)
+
 def release_elastic_ip(client, allocation_id, public_ip='', mode=True):
     """
     Delete a elastic ip.
@@ -583,6 +595,7 @@ def clean(ec2, client):
                             eips = get_elastic_ips(client, 'domain', ['vpc',], [ec2_instance_id,], mode)
                             if eips and "Addresses" in eips and eips['Addresses']:
                                 for ip in eips['Addresses']:
+                                    disassociate_elastic_ip(client, ip['AssociationId'], mode)
                                     release_elastic_ip(client, ip['AllocationId'], ip['PublicIp'], mode)
                             else:
                                 print('No elastic ips detected')
@@ -595,12 +608,12 @@ def clean(ec2, client):
                     sgs = get_sgs(client, 'vpc-id', ec2_vpc_id, [ec2_group_name,], mode)
                     if sgs and "SecurityGroups" in sgs and sgs['SecurityGroups']:
                         for sg in sgs['SecurityGroups']:
-                            revoke_sg_ingress(client, 22, 22, 'TCP', sg['GroupId'], [{'CidrIp':'0.0.0.0/0'},], [{'CidrIpv6':'::/0'}], mode)
-                            revoke_sg_ingress(client, 80, 80, 'TCP', sg['GroupId'], [{'CidrIp':'0.0.0.0/0'}], [{'CidrIpv6':'::/0'}], mode)
-                            revoke_sg_ingress(client, 443, 443, 'TCP', sg['GroupId'], [{'CidrIp':'0.0.0.0/0'}], [{'CidrIpv6':'::/0'}], mode)
-                            revoke_sg_egress(client, 22, 22, 'TCP', sg['GroupId'], [{'CidrIp':'0.0.0.0/0'},], [{'CidrIpv6':'::/0'}], mode)
-                            revoke_sg_egress(client, 80, 80, 'TCP', sg['GroupId'], [{'CidrIp':'0.0.0.0/0'},], [{'CidrIpv6':'::/0'}], mode)
-                            revoke_sg_egress(client, 443, 443, 'TCP', sg['GroupId'], [{'CidrIp':'0.0.0.0/0'},], [{'CidrIpv6':'::/0'}], mode)
+                            revoke_sg_ingress(client, 22, 22, 'TCP',   sg['GroupId'], [{'CidrIp': '0.0.0.0/0'},], [], mode)
+                            revoke_sg_ingress(client, 80, 80, 'TCP',   sg['GroupId'], [{'CidrIp': '0.0.0.0/0'},], [], mode)
+                            revoke_sg_ingress(client, 443, 443, 'TCP', sg['GroupId'], [{'CidrIp': '0.0.0.0/0'},], [], mode)
+                            revoke_sg_egress(client, 22, 22, 'TCP',    sg['GroupId'], [{'CidrIp': '0.0.0.0/0'},], [], mode)
+                            revoke_sg_egress(client, 80, 80, 'TCP',    sg['GroupId'], [{'CidrIp': '0.0.0.0/0'},], [], mode)
+                            revoke_sg_egress(client, 443, 443, 'TCP',  sg['GroupId'], [{'CidrIp': '0.0.0.0/0'},], [], mode)
                             delete_sg(client, sg['GroupId'], mode)
                     else:
                         print('No security groups detected')
