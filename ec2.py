@@ -298,7 +298,7 @@ def associate_route_table(client, route_table_id, subnet_id, mode=True):
     """
     try:
         response = client.associate_route_table( RouteTableId=route_table_id, SubnetId=subnet_id, DryRun=mode)
-        print('Associated route table to %s %s' % (vpc_id, ('(dryrun)' if mode else '')))
+        print('Associated route table %s to %s %s' % (route_table_id, subnet_id, ('(dryrun)' if mode else '')))
         return response
     except Exception as err:
         handle(err)
@@ -731,7 +731,7 @@ def start(ec2, client):
                             if ec2_route_table_association_id:
                                 ec2_route_table_association_id = ec2_route_table_association_id['AssociationId']
 
-                        print('created Instance %s' % ('(dryrun)' if mode else ec2_instance_id))
+                        print('created Instance %s %s' % (ec2_instance_id, ('(dryrun)' if mode else ec2_instance_id)))
             else:
                 print('No VPCs found')
         except Exception as err:
