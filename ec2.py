@@ -317,7 +317,7 @@ def create_route(client, ver, cidr, gateway_id, route_table_id, dry=True):
     except Exception as err:
         handle(err)
 
-def delete_route(client, cidr, gateway_id, route_table_id, dry=True):
+def delete_route(client, cidr, route_table_id, dry=True):
     """
     Create a route in route table
     https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.delete_route
@@ -371,7 +371,7 @@ def get_route_tables(client, name, values, dry=True):
     https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.describe_route_tables
     """
     try:
-        return client.describe_route_tables(Filters=[{'Name': name, 'Values': values}, {'Name': 'association.main', 'Values': ['False',]}], DryRun=dry)
+        return client.describe_route_tables(Filters=[{'Name': name, 'Values': values}], DryRun=dry)
     except Exception as err:
         handle(err)
 
@@ -449,7 +449,7 @@ def get_network_acls(client, name, values, dry=True):
     https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.describe_network_acls
     """
     try:
-        return client.describe_network_acls(Filters=[{'Name': name, 'Values':values}, {'Name':'default','Values':['false']}], DryRun=dry)
+        return client.describe_network_acls(Filters=[{'Name': name, 'Values':values}], DryRun=dry)
     except Exception as err:
         handle(err)
 
@@ -654,33 +654,12 @@ def clean(ec2, client):
                     else:
                         print('No ec2 instances detected')
 
-                    ### SECURITY GROUPS ###
-                    sgs = get_sgs(client, 'vpc-id', [ec2_vpc_id,], [ec2_group_name,], dry)
-                    if sgs and "SecurityGroups" in sgs and sgs['SecurityGroups']:
-                        for sg in sgs['SecurityGroups']:
-                            revoke_sg_ingress(client, 22, 22, 'TCP',   sg['GroupId'], [{'CidrIp': '0.0.0.0/0'},], [], dry)
-                            revoke_sg_ingress(client, 80, 80, 'TCP',   sg['GroupId'], [{'CidrIp': '0.0.0.0/0'},], [], dry)
-                            revoke_sg_ingress(client, 443, 443, 'TCP', sg['GroupId'], [{'CidrIp': '0.0.0.0/0'},], [], dry)
-                            revoke_sg_egress(client, 22, 22, 'TCP',    sg['GroupId'], [{'CidrIp': '0.0.0.0/0'},], [], dry)
-                            revoke_sg_egress(client, 80, 80, 'TCP',    sg['GroupId'], [{'CidrIp': '0.0.0.0/0'},], [], dry)
-                            revoke_sg_egress(client, 443, 443, 'TCP',  sg['GroupId'], [{'CidrIp': '0.0.0.0/0'},], [], dry)
-                            delete_sg(client, sg['GroupId'], dry)
-                    else:
-                        print('No security groups detected')
-
                     ### INTERNET GATEWAY ###
                     gateways = get_internet_gateways(client, 'attachment.vpc-id', [ec2_vpc_id,], dry)
                     if gateways and "InternetGateways" in gateways and gateways['InternetGateways']:
                         for igw in gateways['InternetGateways']:
                             detach_internet_gateway(client, igw['InternetGatewayId'], ec2_vpc_id, dry)
                             delete_internet_gateway(client, igw['InternetGatewayId'], dry)
-                    
-                            ### INTERNET ROUTES ###
-                            route_tables = get_route_tables(client, 'vpc-id', [ec2_vpc_id,], dry)
-                            if route_tables and "RouteTables" in route_tables and route_tables['RouteTables']:
-                                for rt in route_tables['RouteTables']:
-                                    delete_route(client, '0.0.0.0/0', rt['RouteTableId'], igw['InternetGatewayId'], dry)
-                                    delete_route(client, '::/0',      rt['RouteTableId'], igw['InternetGatewayId'], dry)
                     else:
                         print('No internet gateways detected')
 
@@ -706,17 +685,36 @@ def clean(ec2, client):
                         for acl in acls['NetworkAcls']:
                             delete_network_acl_entry(client, acl['NetworkAclId'], 100, False, dry)
                             delete_network_acl_entry(client, acl['NetworkAclId'], 100, True, dry)
+                            delete_network_acl_entry(client, acl['NetworkAclId'], 101, False, dry)
+                            delete_network_acl_entry(client, acl['NetworkAclId'], 101, True, dry)
                             delete_network_acl(client, acl['NetworkAclId'], dry)
                     else:
                         print('No network acls detected')
+
+                    ### SECURITY GROUPS ###
+                    sgs = get_sgs(client, 'vpc-id', [ec2_vpc_id,], [ec2_group_name,], dry)
+                    if sgs and "SecurityGroups" in sgs and sgs['SecurityGroups']:
+                        for sg in sgs['SecurityGroups']:
+                            revoke_sg_ingress(client, 22, 22, 'TCP',   sg['GroupId'], [{'CidrIp': '0.0.0.0/0'},], [], dry)
+                            revoke_sg_ingress(client, 80, 80, 'TCP',   sg['GroupId'], [{'CidrIp': '0.0.0.0/0'},], [], dry)
+                            revoke_sg_ingress(client, 443, 443, 'TCP', sg['GroupId'], [{'CidrIp': '0.0.0.0/0'},], [], dry)
+                            revoke_sg_egress(client, 22, 22, 'TCP',    sg['GroupId'], [{'CidrIp': '0.0.0.0/0'},], [], dry)
+                            revoke_sg_egress(client, 80, 80, 'TCP',    sg['GroupId'], [{'CidrIp': '0.0.0.0/0'},], [], dry)
+                            revoke_sg_egress(client, 443, 443, 'TCP',  sg['GroupId'], [{'CidrIp': '0.0.0.0/0'},], [], dry)
+                            delete_sg(client, sg['GroupId'], dry)
+                    else:
+                        print('No security groups detected')
 
                     ### ROUTE TABLE ###
                     route_tables = get_route_tables(client, 'vpc-id', [ec2_vpc_id,], dry)
                     if route_tables and "RouteTables" in route_tables and route_tables['RouteTables']:
                         for rt in route_tables['RouteTables']:
-                            disassociate_route_table(client, rt['Associations'][0]['RouteTableAssociationId'], dry)
-                    else:
-                        print('No route tables detected')
+                            if rt['Associations']:
+                                disassociate_route_table(client, rt['Associations'][0]['RouteTableAssociationId'], dry)
+                            delete_route(client, '0.0.0.0/0',    rt['RouteTableId'], dry)
+                            delete_route(client, '::/0',         rt['RouteTableId'], dry)
+                            delete_route(client, ec2_cidr_block, rt['RouteTableId'], dry)
+                            delete_route_table(client, rt['RouteTableId'], dry)
 
                     ### VPC ###
                     delete_vpc(client, ec2_vpc_id, dry)
