@@ -712,7 +712,7 @@ def clean(ec2, client):
                         print('No network acls detected')
 
                     ### SECURITY GROUPS ###
-                    sgs = get_sgs(client, 'vpc-id', [ec2_vpc_id,], dry)
+                    sgs = get_sgs(client, 'vpc-id', [ec2_vpc_id,], [ec2_group_name,], dry)
                     if sgs and "SecurityGroups" in sgs and sgs['SecurityGroups']:
                         for sg in sgs['SecurityGroups']:
 
