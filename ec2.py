@@ -131,7 +131,7 @@ def modify_subnet_attribute(client, subnet, value, dry=True):
     """
     try:
         response = client.modify_subnet_attribute(SubnetId=subnet, MapPublicIpOnLaunch={'Value': value})
-        print('Map subnet %s public-ip-on-launch %s %s' % (subnet, value, ('(dry)' if dry else '')))
+        print('Map %s public-ip-on-launch %s %s' % (subnet, value, ('(dry)' if dry else '')))
         return response
     except Exception as err:
         handle(err)
