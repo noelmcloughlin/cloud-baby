@@ -124,6 +124,19 @@ def create_subnet(client, vpc_id, name=ec2_project_name, cidr_ipv4=ec2_cidr_bloc
         handle(err)
     return None
 
+def modify_subnet_attribute(client, subnet, name, value):
+    """
+    Modify a subnet.
+    See https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.modify_subnet_attribute
+    """
+    try:
+        response = client.modify_subnet_attribute(SubnetId=subnet, name=value)
+        print('Modified attributes of subnet %s %s' % (subnet, ('(dryrun)' if mode else '')))
+        return response
+    except Exception as err:
+        handle(err)
+    return None
+
 def delete_subnet(client, subnet, mode=True):
     """
     Delete a subnet.
@@ -351,6 +364,18 @@ def create_network_acl(client, vpc_id, mode=True):
     except Exception as err:
         handle(err)
 
+def replace_network_acl_association(client, network_acl_id, association_id, mode=True):
+    """
+    Replace network acl.
+    https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.replace_network_acl_association
+    """
+    try:
+        response = client.replace_network_acl_association( AssociationId=association_id, NetworkAclId=network_acl_id, DryRun=mode)
+        print('Replaced network association %s %s' % (network_acl_id, ('(dryrun)' if mode else '')))
+        return response
+    except Exception as err:
+        handle(err)
+
 def create_network_acl_entry(client, id, num, action, cidr=ec2_cidr_block, proto='6', from_port=22, to_port=22, egress=False, mode=False):
     """
     Create network acl entry
@@ -397,7 +422,7 @@ def get_network_acls(client, name, values, mode=True):
     https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.describe_network_acls
     """
     try:
-        return client.describe_network_acls(Filters=[{'Name': name, 'Values':values}, {'Name':'default','Values':['False']}], DryRun=mode)
+        return client.describe_network_acls(Filters=[{'Name': name, 'Values':values}, {'Name':'default','Values':['false']}], DryRun=mode)
     except Exception as err:
         handle(err)
 
@@ -656,12 +681,16 @@ def clean(ec2, client):
                     if route_tables and "RouteTables" in route_tables and route_tables['RouteTables']:
                         for rt in route_tables['RouteTables']:
                             disassociate_route_table(client, rt['Associations'][0]['RouteTableAssociationId'], mode)
-                            delete_route_table(client, rt['RouteTableId'], mode)
                     else:
                         print('No route tables detected')
 
                     ### VPC ###
                     delete_vpc(client, ec2_vpc_id, mode)
+
+                    ### STUFF ###
+                    if route_tables and "RouteTables" in route_tables and route_tables['RouteTables']:
+                        for rt in route_tables['RouteTables']:
+                            delete_route_table(client, rt['RouteTableId'], mode)
             else:
                 print('No VPCs found')
         except Exception as err:
@@ -685,27 +714,30 @@ def start(ec2, client):
                     ec2_igw_id = ec2_igw_id['InternetGateway']['InternetGatewayId']
                     attach_internet_gateway(client, ec2_igw_id, ec2_vpc_id, mode)
 
-                ### NETWORK ACL ###
-                ec2_network_acl_id = create_network_acl(client, ec2_vpc_id, mode)
-                if ec2_network_acl_id:
-                    ec2_network_acl_id = ec2_network_acl_id['NetworkAcl']['NetworkAclId']
-                    create_network_acl_entry(client, ec2_network_acl_id, 100, 'allow', ec2_cidr_block, '6', 0, 0, False, mode)
-                    create_network_acl_entry(client, ec2_network_acl_id, 100, 'allow', ec2_cidr_block, '6', 0, 0, True, mode)
-
                 ### ROUTE TABLE ###
-                ec2_route_table_id = create_route_table(client, ec2_vpc_id, mode)
-                if ec2_route_table_id:
-                    ec2_route_table_id = ec2_route_table_id['RouteTable']['RouteTableId']
+                #ec2_route_table_id = create_route_table(client, ec2_vpc_id, mode)
+                #if ec2_route_table_id:
+                #    ec2_route_table_id = ec2_route_table_id['RouteTable']['RouteTableId']
 
                 ### SUBNET ###
                 ec2_subnet_id = create_subnet(client, ec2_vpc_id, ec2_project_name, ec2_cidr_block, mode)
                 if ec2_subnet_id:
                     ec2_subnet_id = ec2_subnet_id['Subnet']['SubnetId']
+                    modify_subnet_attribute(client, ec2_subnet_id, 'MapPublicIpOnLaunch', True)
+
+                    ### NETWORK ACL ###
+                    ec2_network_acl_id = create_network_acl(client, ec2_vpc_id, mode)
+                    if ec2_network_acl_id:
+                        acl_association_id = ec2_network_acl_id['NetworkAcl']['Associations'][0]['NetworkAclAssociationId']
+                        replace_network_acl_association(client, ec2_network_acl_id, association_id, mode)
+                        ec2_network_acl_id = ec2_network_acl_id['NetworkAcl']['NetworkAclId']
+                        create_network_acl_entry(client, ec2_network_acl_id, 100, 'allow', ec2_cidr_block, '6', 0, 0, False, mode)
+                        create_network_acl_entry(client, ec2_network_acl_id, 100, 'allow', ec2_cidr_block, '6', 0, 0, True, mode)
 
                     ### ELASTIC IP ###
-                    ec2_elastic_ip_allocation_id = create_elastic_ip(client, 'vpc', mode)
-                    if ec2_elastic_ip_allocation_id:
-                        ec2_elastic_ip_allocation_id = ec2_elastic_ip_allocation_id['AllocationId']
+                    #ec2_elastic_ip_allocation_id = create_elastic_ip(client, 'vpc', mode)
+                    #if ec2_elastic_ip_allocation_id:
+                    #    ec2_elastic_ip_allocation_id = ec2_elastic_ip_allocation_id['AllocationId']
 
                         ### NAT GATEWAY
                         #ec2_nat_gw_id = create_nat_gateway(client, ec2_elastic_ip_allocation_id, ec2_subnet_id, mode)
@@ -732,9 +764,9 @@ def start(ec2, client):
                             instance.wait_until_running(Filters=[{'Name': 'instance-id', 'Values': [ec2_instance_id,]}], DryRun=mode)
 
                             #### ELASTIC IP ASSOCIATION  ####
-                            ec2_elastic_ip_association_id = associate_elastic_ip(client, ec2_elastic_ip_allocation_id, ec2_instance_id, mode)
-                            if ec2_elastic_ip_association_id:
-                                ec2_elastic_ip_association_id = ec2_elastic_ip_association_id['AssociationId']
+                            #ec2_elastic_ip_association_id=associate_elastic_ip(client, ec2_elastic_ip_allocation_id,ec2_instance_id,mode)
+                            #if ec2_elastic_ip_association_id:
+                            #   ec2_elastic_ip_association_id = ec2_elastic_ip_association_id['AssociationId']
 
                             #### ROUTE TABLE ASSOCIATION  ####
                             ec2_route_table_association_id = associate_route_table(client, ec2_route_table_id, ec2_subnet_id, mode)
