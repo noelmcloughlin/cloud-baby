@@ -6,7 +6,7 @@ import sys, os, getopt, boto3, botocore
 ec2_keypair_name='ec2_user'
 ec2_ami='ami-0fad7378adf284ce0'
 ec2_ami_type='t2.micro'
-ec2_cidr_block='10.0.0.0/16'
+ec2_cidr_block='172.35.0.0/16/16'
 ec2_group_name='mygroupname'
 ec2_instance_id=None
 ec2_project_name='assignment project'
