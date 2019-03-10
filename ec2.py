@@ -199,6 +199,15 @@ def get_sgs(client, name='tag:project', values=[ec2_project_name,], groups=[ec2_
     except Exception as err:
         handle(err)
 
+def get_sgs_references(client, groups, dry=True):
+    """
+    Get Security Groups references
+    https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.describe_security_group_references
+    """
+    try:
+        return client.describe_security_group_references(GroupId=groups, DryRun=dry)
+    except Exception as err:
+        handle(err)
 
 def authorize_sg_egress(client, from_port, to_port, proto, sg_id, ipv4, ipv6=[{'CidrIpv6', '::/0'},], dry=True):
     """
@@ -625,6 +634,17 @@ def get_instances(client, name, values, dry=True):
 ################################
 #### cleanup all resources #####
 ################################
+def clean_sgs(client, sg_id, dry):
+    delete_sg(client, sg_id, dry)
+    revoke_sg_ingress(client, 22, 22, 'TCP',   sg_id, [{'CidrIp': '0.0.0.0/0'},], [], dry)
+    revoke_sg_ingress(client, 80, 80, 'TCP',   sg_id, [{'CidrIp': '0.0.0.0/0'},], [], dry)
+    revoke_sg_ingress(client, 443, 443, 'TCP', sg_id, [{'CidrIp': '0.0.0.0/0'},], [], dry)
+    revoke_sg_egress(client, 22, 22, 'TCP',    sg_id, [{'CidrIp': '0.0.0.0/0'},], [], dry)
+    revoke_sg_egress(client, 80, 80, 'TCP',    sg_id, [{'CidrIp': '0.0.0.0/0'},], [], dry)
+    revoke_sg_egress(client, 443, 443, 'TCP',  sg_id, [{'CidrIp': '0.0.0.0/0'},], [], dry)
+    delete_sg(client, sg_id, dry)
+
+
 def clean(ec2, client):
     for dry in (True, False):
         try:
@@ -692,16 +712,19 @@ def clean(ec2, client):
                         print('No network acls detected')
 
                     ### SECURITY GROUPS ###
-                    sgs = get_sgs(client, 'vpc-id', [ec2_vpc_id,], [ec2_group_name,], dry)
+                    sgs = get_sgs(client, 'vpc-id', [ec2_vpc_id,], dry)
                     if sgs and "SecurityGroups" in sgs and sgs['SecurityGroups']:
                         for sg in sgs['SecurityGroups']:
-                            revoke_sg_ingress(client, 22, 22, 'TCP',   sg['GroupId'], [{'CidrIp': '0.0.0.0/0'},], [], dry)
-                            revoke_sg_ingress(client, 80, 80, 'TCP',   sg['GroupId'], [{'CidrIp': '0.0.0.0/0'},], [], dry)
-                            revoke_sg_ingress(client, 443, 443, 'TCP', sg['GroupId'], [{'CidrIp': '0.0.0.0/0'},], [], dry)
-                            revoke_sg_egress(client, 22, 22, 'TCP',    sg['GroupId'], [{'CidrIp': '0.0.0.0/0'},], [], dry)
-                            revoke_sg_egress(client, 80, 80, 'TCP',    sg['GroupId'], [{'CidrIp': '0.0.0.0/0'},], [], dry)
-                            revoke_sg_egress(client, 443, 443, 'TCP',  sg['GroupId'], [{'CidrIp': '0.0.0.0/0'},], [], dry)
-                            delete_sg(client, sg['GroupId'], dry)
+
+                            ### REFERENCING SECURITY GROUPS ###
+                            refs = get_sgs_references(client, [sg['GroupId'],], dry)
+                            if refs and "SecurityGroupReferenceSet" in refs and refs['SecurityGroupReferenceSet']:
+                                for ref in refs['SecurityGroupReferenceSet']:
+                                    for rg in get_sgs(client, 'vpc-id', [ref[0]['ReferencingVpcId'],], dry):
+                                        clean_sgs(client, rg, dry)
+                            else:
+                                print('No referencing security groups detected')
+                            clean_sgs(client, sg['GroupId'], dry)
                     else:
                         print('No security groups detected')
 
