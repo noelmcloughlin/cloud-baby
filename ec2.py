@@ -6,7 +6,7 @@ import sys, os, getopt, boto3, botocore
 ec2_keypair_name='ec2_user'
 ec2_ami='ami-0fad7378adf284ce0'
 ec2_ami_type='t2.micro'
-ec2_cidr_block='172.35.0.0/16/16'
+ec2_cidr_block='172.35.0.0/24'
 ec2_group_name='mygroupname'
 ec2_instance_id=None
 ec2_project_name='assignment project'
@@ -298,6 +298,33 @@ def create_route_table(client, vpc_id, dry=True):
     try:
         response = client.create_route_table( VpcId=vpc_id, DryRun=dry)
         print('Created route table for %s %s' % (vpc_id, ('(dry)' if dry else '')))
+        return response
+    except Exception as err:
+        handle(err)
+
+def create_route(client, ver, cidr, gateway_id, route_table_id, dry=True):
+    """
+    Create a route in route table
+    https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.create_route
+    """
+    try:
+        if ver == 'ipv6':
+            response = client.create_route( DestinationIpv6CidrBlock=cidr, GatewayId=gateway_id, RouteTableId=route_table_id, DryRun=dry)
+        else:
+            response = client.create_route( DestinationCidrBlock=cidr, GatewayId=gateway_id, RouteTableId=route_table_id, DryRun=dry)
+        print('Created %s route for %s %s' % (ver, cidr, ('(dry)' if dry else '')))
+        return response
+    except Exception as err:
+        handle(err)
+
+def delete_route(client, cidr, gateway_id, route_table_id, dry=True):
+    """
+    Create a route in route table
+    https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.delete_route
+    """
+    try:
+        response = client.delete_route( DestinationCidrBlock=cidr, RouteTableId=route_table_id, DryRun=dry)
+        print('Deleted route for %s %s' % (cidr, ('(dry)' if dry else '')))
         return response
     except Exception as err:
         handle(err)
@@ -647,6 +674,13 @@ def clean(ec2, client):
                         for igw in gateways['InternetGateways']:
                             detach_internet_gateway(client, igw['InternetGatewayId'], ec2_vpc_id, dry)
                             delete_internet_gateway(client, igw['InternetGatewayId'], dry)
+                    
+                            ### INTERNET ROUTES ###
+                            route_tables = get_route_tables(client, 'vpc-id', [ec2_vpc_id,], dry)
+                            if route_tables and "RouteTables" in route_tables and route_tables['RouteTables']:
+                                for rt in route_tables['RouteTables']:
+                                    delete_route(client, '0.0.0.0/0', rt['RouteTableId'], igw['InternetGatewayId'], dry)
+                                    delete_route(client, '::/0',      rt['RouteTableId'], igw['InternetGatewayId'], dry)
                     else:
                         print('No internet gateways detected')
 
@@ -687,10 +721,6 @@ def clean(ec2, client):
                     ### VPC ###
                     delete_vpc(client, ec2_vpc_id, dry)
 
-                    ### STUFF ###
-                    if route_tables and "RouteTables" in route_tables and route_tables['RouteTables']:
-                        for rt in route_tables['RouteTables']:
-                            delete_route_table(client, rt['RouteTableId'], dry)
             else:
                 print('No VPCs found')
         except Exception as err:
@@ -718,9 +748,11 @@ def start(ec2, client):
                     attach_internet_gateway(client, ec2_igw_id, ec2_vpc_id, dry)
 
                 ### ROUTE TABLE ###
-                #ec2_route_table_id = create_route_table(client, ec2_vpc_id, dry)
-                #if ec2_route_table_id:
-                #    ec2_route_table_id = ec2_route_table_id['RouteTable']['RouteTableId']
+                ec2_route_table_id = create_route_table(client, ec2_vpc_id, dry)
+                if ec2_route_table_id:
+                    ec2_route_table_id = ec2_route_table_id['RouteTable']['RouteTableId']
+                    create_route(client, 'ipv4', '0.0.0.0/0', ec2_igw_id, ec2_route_table_id, dry)
+                    create_route(client, 'ipv6', '::/0',      ec2_igw_id, ec2_route_table_id, dry)
 
                 ### SUBNET ###
                 ec2_subnet_id = create_subnet(client, ec2_vpc_id, ec2_project_name, ec2_cidr_block, dry)
