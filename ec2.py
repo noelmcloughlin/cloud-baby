@@ -30,8 +30,7 @@ echo "<?php phpinfo(); ?>" > /var/www/html/phpinfo.php
 
 def usage():
     print("\n%s Usage:" % os.path.basename(__file__))
-    print("\n\t  -a --action\tstart|clean|info\tInteract with EC2 environment.")
-    print("\n\t[ -t --target\tec2 ]\t\t\tEC2 target")
+    print("\n\t  -a --action\tstart|clean|info\tStartup or Teardown EC2 instance environment.")
     print("\n")
     sys.exit(2)
 
@@ -832,20 +831,16 @@ def start(ec2, client):
 
 def main(argv):
     try:
-        opts, args = getopt.getopt(argv, "a:t:", ["action=", "target=")
+        opts, args = getopt.getopt(argv, "a:", ["action=",])
     except getopt.GetoptError as e:
         handle(e)
 
     ### command line arguments ###
-    target="ec2"
-
     if not opts:
         usage()
     for opt, arg in opts:
         if opt in ("-a", "--action",):
             action = arg.lower()
-        elif opt in ("-t", "--target"):
-            target = arg.lower() or 'ec2'
         else:
             usage()
 
@@ -854,11 +849,11 @@ def main(argv):
     tag = ec2.Tag('resource_id', 'key', 'value')
 
     ### workflow ###
-    if action == "start" and "ec2" in target:
+    if action == "start":
         start(ec2, client)
-    elif action in ("stop", "clean", "terminate") and "ec2" in target:
+    elif action in ("stop", "clean", "terminate"):
         clean(ec2, client)
-    elif action == "info" and "ec2" in target:
+    elif action == "info":
         info(ec2, client)
     else:
         usage()

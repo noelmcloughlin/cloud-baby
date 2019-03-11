@@ -12,8 +12,9 @@ s3_region_name='eu-west-1'
 
 def usage():
     print("\n%s Usage:" % os.path.basename(__file__))
-    print("\n\t  -a --action\tstart|clean\tInteract with S3 bucket")
-    print("\n\t[ -f --object ]\tfilename\tRelative filename to put in bucket")
+    print("\n\t -a --action\tstart|clean\tInteract with S3 bucket")
+    print("\n\t -n --bucket\tbucketname\tYour bucket name")
+    print("\n\t -f --object\tfilename\tRelative filename to put in bucket")
     print("\n")
     sys.exit(2)
 
@@ -156,12 +157,14 @@ def main(argv):
     ### command line arguments ###
     if not opts:
         usage()
+
     filename = False
+    name = None
     for opt, arg in opts:
         if opt in ("-l", "--list",):
             action = "list"
         elif opt in ("-n", "--name",):
-            action = arg.lower()
+            name = arg.lower()
         elif opt in ("-a", "--action",):
             action = arg.lower()
         elif opt in ("-f", "--file"):
@@ -173,8 +176,8 @@ def main(argv):
     s3 = boto3.resource('s3')
 
     ### workflow ###
-    if action == "start" and filename:
-        start(s3, client, s3_bucket_name, filename)
+    if action == "start" and name and filename:
+        start(s3, client, name, filename)
     elif action == "clean":
         clean(s3, client)
     elif action == "list":

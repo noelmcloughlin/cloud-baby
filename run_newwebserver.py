@@ -7,14 +7,19 @@ import sys, os, getopt, subprocess
 
 def usage():
     print("\n%s Usage:" % os.path.basename(__file__))
-    print("\n\t -h --host\tip-address\tAWS EC2 ip address")
-    print("\n\t -f --file\tfilename\tFile object to put in bucket")
-    print("\n\t -s --script\tfilename\tHealth check script to run on host")
-    print("\n\t -k --keypair\tfilename\tPath to keypair file")
-    print("\n\t -i --instance\tstart|clean\tEC2 Instance Startup/Clean")
-    print("\n\t -o --object\tstart|clean\tS3 Bucket Startup/Clean")
+    print("\n\t [ -h --host ] ip-address\tAWS EC2 ip address")
+    print("\n\t [ -f --file ] filename\t\tFile to put in bucket")
+    print("\n\t [ -s --script ] filepath\tHealth check script to run on host")
+    print("\n\t [ -k --keypair ] filepath\tPath to keypair file")
+    print("\n\t [ -i --instance ] start|clean\tEC2 Instance Startup/Clean")
+    print("\n\t [ -o --object ] start|clean\tS3 Bucket Startup/Clean")
     print("\n")
-    print("Example: %s -f file/myfile.jpg -s files/check.py -k ~/.aws/ec2_user.pem -h 39.49.59.69" % os.path.basename(__file__))
+    print("Example workflow:")
+    print("\n %s -i start" % os.path.basename(__file__))
+    print("\n %s -o start -n s3-my-unique-bucket-nAmE -f files/myimage.jpg" % os.path.basename(__file__))
+    print("\n %s -f file/myfile.jpg -s files/check.py -k ~/.aws/ec2_user.pem -h 39.49.59.69" % os.path.basename(__file__))
+    print("\n %s -i clean" % os.path.basename(__file__))
+    print("\n %s -o clean" % os.path.basename(__file__))
     print("\n")
     sys.exit(2)
 
@@ -55,19 +60,17 @@ def main(argv):
 
         elif opt in ("-i", "--instance",):
             if 'start' in arg.lower():
-                if not subprocess.run("./ec2.py -a start", shell=True)   ### START INSTANCE
-                    exit(1)
+                return subprocess.run("./ec2.py -a start", shell=True)   ### START INSTANCE
             elif arg.lower() in ('clean', 'stop',):
-                if not subprocess.run("./ec2.py -a clean", shell=True)   ### STOP INSTANCE
-                    exit(2)
+                return subprocess.run("./ec2.py -a clean", shell=True)   ### STOP INSTANCE
+            else:
+                usage()
 
         elif opt in ("-o", "--object",):
             if 'start' in arg.lower():
-                if not subprocess.run("./s3.py -a start -f %s" % filename, shell=True):   ### SETUP S3
-                    exit(3)
+                return subprocess.run("./s3.py -a start -f %s" % filename, shell=True)   ### SETUP S3
             elif arg.lower() in ('clean', 'stop',):
-                if not subprocess.run("./s3.py -a clean" shell=True):                     ### CLEAN S3
-                    exit(4)
+                return subprocess.run("./s3.py -a clean", shell=True)                    ### CLEAN S3
             else:
                 usage()
         else:
