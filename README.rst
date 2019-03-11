@@ -2,7 +2,7 @@
 boto3utils
 ================
 
-Usage
+EC2 Usage
 ======
 
 Clean EC2 Environment::
@@ -73,3 +73,14 @@ Clean EC2 Environment::
             Deleted acl-0eb611c79eb75bff2 
             Deleted route table rtb-0ccea9e7070082233
             Deleted vpc-0164f4e81a7d7b1e3 
+
+
+Testing
+=======
+EC2 instance startup::
+
+            $ ./run_newwebserver.py -i start
+
+S3 bucket and web server hosted on EC2::
+
+            $ ./run_newwebserver.py -o start -n fjkdjkernoelmcloghlin-3324433666 -f files/margaret_hamilton_1969.jpeg -h 63.35.96.165 -k ~/.aws/ec2_user.pem 

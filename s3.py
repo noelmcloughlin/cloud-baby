@@ -4,8 +4,6 @@ import sys, os, getopt, boto3, botocore
 import subprocess
 import uuid
 
-s3_bucket_name='s3-09b9db1b-812c-4dcc-99ca-f08842c254f7'
-s3_object_name='./files/margaret_hamilton_1969.jpeg'
 s3_region_name='eu-west-1'
 
 ########### FUNCTIONS ############
@@ -72,14 +70,14 @@ def delete_bucket(client, bucket, dry=False):
 ### OBJECTS ###
 ###############
 
-def put_object(s3, bucket_name, object_name, dry=False):
+def put_object(s3, bucket, object_name, dry=False):
     """
     Put object in bucket
     https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html#S3.Client.put_object
     """
     try:
-        response = s3.Object(bucket_name, object_name).put(Body=open(object_name, 'rb'))
-        print('Put %s in bucket %s %s' % (object_name, s3_bucket_name, '(dry)' if dry else ''))
+        response = s3.Object(bucket, object_name).put(Body=open(object_name, 'rb'))
+        print('Put %s in bucket %s %s' % (object_name, bucket, '(dry)' if dry else ''))
         #return response
     except Exception as err:
         handle(err)
@@ -124,12 +122,12 @@ def list_objects(client, bucket, dry=False):
 ##########################
 #### Create resources ####
 ##########################
-def start(s3, client, bucket_name, object_name, dry=False):
+def start(s3, client, bucket, object_name, dry=False):
     try:
-        s3_bucket = create_bucket(client, 'public-read-write', s3_bucket_name, s3_region_name, dry)
+        s3_bucket = create_bucket(client, 'public-read-write', bucket, s3_region_name, dry)
         if s3_bucket:
             print(s3_bucket['Location'])
-            response = put_object(s3, bucket_name, object_name, dry)
+            response = put_object(s3, bucket, object_name, dry)
             if response:
                 print(list_objects(client, s3_bucket))
 
@@ -150,7 +148,7 @@ def clean(s3, client):
 
 def main(argv):
     try:
-        opts, args = getopt.getopt(argv, "a:f:n:l", ["action=", "file=", "list="])
+        opts, args = getopt.getopt(argv, "a:f:n:l", ["action=", "file=", "name=", "list="])
     except getopt.GetoptError as e:
         handle(e)
 
@@ -158,8 +156,7 @@ def main(argv):
     if not opts:
         usage()
 
-    filename = False
-    name = None
+    name = filename = action = ""
     for opt, arg in opts:
         if opt in ("-l", "--list",):
             action = "list"
@@ -178,8 +175,8 @@ def main(argv):
     ### workflow ###
     if action == "start" and name and filename:
         start(s3, client, name, filename)
-    elif action == "clean":
-        clean(s3, client)
+    elif action == "clean" and name:
+        clean(s3, client, name)
     elif action == "list":
         client.list_buckets()
     else:
