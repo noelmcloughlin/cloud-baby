@@ -617,7 +617,6 @@ def get_instances(client, name, values, dry=True):
 #### cleanup all resources #####
 ################################
 def clean_sgs(client, sg_id, dry):
-    delete_sg(client, sg_id, dry)
     revoke_sg_ingress(client, 22, 22, 'TCP',   sg_id, [{'CidrIp': '0.0.0.0/0'},], [], dry)
     revoke_sg_ingress(client, 80, 80, 'TCP',   sg_id, [{'CidrIp': '0.0.0.0/0'},], [], dry)
     revoke_sg_ingress(client, 443, 443, 'TCP', sg_id, [{'CidrIp': '0.0.0.0/0'},], [], dry)
