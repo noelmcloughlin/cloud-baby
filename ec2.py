@@ -2,14 +2,13 @@
 
 import sys, os, getopt, boto3, botocore
 
-### VARS ###
 ec2_keypair_name='ec2_user'
 ec2_ami='ami-0fad7378adf284ce0'
 ec2_ami_type='t2.micro'
 ec2_cidr_block='172.35.0.0/24'
 ec2_group_name='mygroupname'
 ec2_instance_id=None
-ec2_project_name='assignment project'
+ec2_project_name='boto3utils project'
 ec2_region_name='eu-west-1'
 
 ec2_userdata="""
@@ -33,7 +32,6 @@ def usage():
     print("\n%s Usage:" % os.path.basename(__file__))
     print("\n\t  -a --action\tstart|clean|info\tInteract with EC2 environment.")
     print("\n\t[ -t --target\tec2 ]\t\t\tEC2 target")
-    print("\n\t[ -k --keypair\t<name> ]\t\tAWS keypair name")
     print("\n")
     sys.exit(2)
 
@@ -52,21 +50,6 @@ def handle(error=None, resource=None):
     except AttributeError as err:
         print('Something went wrong %s %s' % (error, err))
     exit(1)
-
-#################
-### KEYPAIRS ###
-#################
-
-def get_keypairs(client, values=[ec2_keypair_name,], dry=True):
-    """
-    Get keypairs
-    https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.describe_key_pairs
-    """
-    try:
-        return client.describe_key_pairs(Filters=[{'Name': 'key-name', 'Values': values}], DryRun=dry)
-    except Exception as err:
-        handle(err)
-
 
 ############
 ### VPCS ###
@@ -842,16 +825,6 @@ def start(ec2, client):
             handle(err)
     return(0)
 
-def info(ec2, client):
-    ### KEY PAIR ###
-    try:
-        response = get_keypairs(client, [ec2_keypair_name,], False)
-        if response and "KeyPairs" in response:
-            for key in response['KeyPairs']:
-                print("KeyName: %s, KeyFingerprint: %s" % (key['KeyName'], key['KeyFingerprint']))
-    except Exception as err:
-        handle(err)
-
 
 #############
 ### MAIN ####
@@ -859,7 +832,7 @@ def info(ec2, client):
 
 def main(argv):
     try:
-        opts, args = getopt.getopt(argv, "a:t:k:", ["action=", "target=", "keypair="])
+        opts, args = getopt.getopt(argv, "a:t:", ["action=", "target=")
     except getopt.GetoptError as e:
         handle(e)
 
@@ -873,8 +846,6 @@ def main(argv):
             action = arg.lower()
         elif opt in ("-t", "--target"):
             target = arg.lower() or 'ec2'
-        elif opt in ("-k", "--keypair"):
-            keypair_name = arg.lower()
         else:
             usage()
 
@@ -897,5 +868,4 @@ if __name__ == "__main__":
        main(sys.argv[1:])
    except Exception as err:
        handle(err)
-print('\n')
 exit(0)
