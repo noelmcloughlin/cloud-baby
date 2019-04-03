@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import sys, os, getopt, boto3, botocore
+import sys, os, getopt, boto3, botocore, time
 
 ec2_keypair_name='ec2_user'
 ec2_ami='ami-0fad7378adf284ce0'
@@ -10,6 +10,7 @@ ec2_group_name='mygroupname'
 ec2_instance_id=None
 ec2_project_name='boto3utils project'
 ec2_region_name='eu-west-1'
+ec2_peering_region_name='eu-west-1'
 
 ec2_userdata="""
 #!/bin/bash
@@ -57,7 +58,7 @@ def handle(error=None, resource=None):
 def create_vpc(client, name=ec2_project_name, cidr_ipv4=ec2_cidr_block, autoipv6=False, tenancy='default', dry=True):
     """
     Create a virtual private cloud.
-    See https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.create_vpc
+    https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.create_vpc
     """
     try:
         response = client.create_vpc(CidrBlock=ec2_cidr_block, AmazonProvidedIpv6CidrBlock=True, InstanceTenancy=tenancy, DryRun=dry)
@@ -89,6 +90,132 @@ def get_vpcs(client, name='tag:project', values=[ec2_project_name,], dry=True):
     except Exception as err:
         handle(err)
 
+
+####################
+### VPC ENDPOINTS ##
+####################
+
+def create_vpc_endpoint(client, vpc_id, rttable_ids, subnet_ids, sg_ids, type='Gateway', svc='com.amazonaws.eu-west-1.ec2', dry=True):
+    """
+    Create a virtual private cloud.
+    https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.create_vpc_endpoint
+    """
+    try:
+        response = client.create_vpc_endpoint(VpcEndpointType=type, VpcId=vpc_id, ServiceName=svc, RouteTableIds=rttable_ids, SubnetIds=subnet_ids, SecurityGroupIds=sg_ids, Dryrun=dry)
+        print('Created vpc_endpoint  %s' % ('(dry)' if dry else ''))
+        return response
+    except Exception as err:
+        handle(err)
+    return None
+
+def delete_vpc_endpoints(client, vpc_endpoint_id, dry=True):
+    """
+    Delete a virtual private cloud endpoint
+    https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.delete_vpc_endpoints
+    """
+    try:
+        response = client.delete_vpc_endpoints(VpcEndpointIds=[vpc_endpoint_id,], DryRun=dry)
+        print('Deleted %s %s' % (vpc_endpoint_id, ('(dry)' if dry else '')))
+        return response
+    except Exception as err:
+        handle(err)
+
+def get_vpcs_endpoints(client, name='tag:project', values=[ec2_project_name,], dry=True):
+    """
+    Get VPC(s) by endpoints filter
+    https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.describe_vpc_endpoints
+    """
+    try:
+        return client.describe_vpc_endpoints(Filters=[{'Name': name, 'Values': values},], DryRun=dry)
+    except Exception as err:
+        handle(err)
+
+
+##############################
+### VPC PEERING CONNECTIONS ##
+##############################
+
+def create_vpc_peering_connection(client, peer_vpc_id, vpc_id, region=ec2_peering_region_name, dry=True):
+    """
+    Create a virtual private cloud peering connection
+    https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.create_vpc_peering_connection
+    """
+    try:
+        response = client.create_vpc_peering_connection(PeerVpcId=peer_vpc_id, VpcId=vpc_id, PeerRegion=region, Dryrun=dry)
+        print('Created vpc_peering_connection  %s' % ('(dry)' if dry else ''))
+        return response
+    except Exception as err:
+        handle(err)
+    return None
+
+def delete_vpc_peering_connection(client, vpc_peering_connection_id, dry=True):
+    """
+    Delete a virtual private cloud peering_connection
+    https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.delete_vpc_peering_connections
+    """
+    try:
+        response = client.delete_vpc_peering_connections(VpcPeeringConnectionId=vpc_peering_connection_id, DryRun=dry)
+        print('Deleted %s %s' % (vpc_peering_connection_id, ('(dry)' if dry else '')))
+        return response
+    except Exception as err:
+        handle(err)
+
+def get_vpcs_peering_connections(client, name='tag:project', values=[ec2_project_name,], vpc_peering_connection_ids=None, dry=True):
+    """-
+    Get VPC(s) by peering_connections filter
+    https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.describe_vpc_peering_connections
+    """
+    try:
+        if vpc_peering_connection_ids:
+            return client.describe_vpc_peering_connections(VpcPeeringConnectionIds=vpc_peering_connection_ids, DryRun=dry)
+        else:
+            return client.describe_vpc_peering_connections(Filters=[{'Name': name, 'Values': values},], DryRun=dry)
+    except Exception as err:
+        handle(err)
+
+
+##########################
+### NETWORK INTERFACES ###
+##########################
+
+def create_network_interface(client, desc=ec2_project_name, groups=None, private_ip=None, private_ips=None, subnet_id=None, dry=True):
+    """
+    Create a network_interface.
+    https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.create_network_interface
+    """
+    try:
+        response = client.create_network_interface(Description=desc, Groups=groups, PrivateIpAddress=private_ip, PrivateIpAddresses=private_ips, SubnetId=subnet_id, DryRun=dry)
+        print('Created network_interface for %s %s' % (private_ip, ('(dry)' if dry else '')))
+        return response
+    except Exception as err:
+        handle(err)
+    return None
+
+def delete_network_interface(client, id, dry=True):
+    """
+    Delete a network_interface.
+    https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.delete_network_interface
+    """
+    try:
+        response = client.delete_network_interface(NetworkInterfaceId=id, DryRun=dry)
+        print('Deleted %s %s' % (id, ('(dry)' if dry else '')))
+        return response
+    except Exception as err:
+        handle(err)
+
+def get_network_interfaces(client, name='vpc-id', values=None, network_interface_ids=None, dry=True):
+    """
+    Get Network interfaces by tag name/value or maybe by array of ids.
+    https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.describe_network_interfaces
+    """
+    try:
+        if network_interface_ids:
+            return client.describe_network_interfaces(NetworkInterfaceIds=network_interface_ids, DryRun=dry)
+        else:
+            return client.describe_network_interfaces(Filters=[{'Name': name, 'Values': values},], DryRun=dry)
+    except Exception as err:
+        handle(err)
+
 ##############
 ### SUBNET ###
 ##############
@@ -96,7 +223,7 @@ def get_vpcs(client, name='tag:project', values=[ec2_project_name,], dry=True):
 def create_subnet(client, vpc_id, name=ec2_project_name, cidr_ipv4=ec2_cidr_block, dry=True):
     """
     Create a subnet.
-    See https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.create_subnet
+    https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.create_subnet
     """
     try:
         response = client.create_subnet(CidrBlock=cidr_ipv4, VpcId=vpc_id, DryRun=dry)
@@ -109,7 +236,7 @@ def create_subnet(client, vpc_id, name=ec2_project_name, cidr_ipv4=ec2_cidr_bloc
 def modify_subnet_attribute(client, subnet, value, dry=True):
     """
     Modify a subnet.
-    See https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.modify_subnet_attribute
+    https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.modify_subnet_attribute
     """
     try:
         response = client.modify_subnet_attribute(SubnetId=subnet, MapPublicIpOnLaunch={'Value': value})
@@ -148,7 +275,7 @@ def get_subnets(client, name='tag:project', values=[ec2_project_name,], dry=True
 def create_sg(client, vpc_id, desc=ec2_project_name, groupname=ec2_group_name, dry=True):
     """
     Create security group.
-    See https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.create_security_group
+    https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.create_security_group
     """
     try:
         response = client.create_security_group( Description=desc, GroupName=groupname, VpcId=vpc_id, DryRun=dry)
@@ -160,7 +287,7 @@ def create_sg(client, vpc_id, desc=ec2_project_name, groupname=ec2_group_name, d
 def delete_sg(client, sg_id, dry=True):
     """
     Delete a security group.
-    See https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.delete_security_group
+    https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.delete_security_group
     """
     try:
         response = client.delete_security_group( GroupId=sg_id, DryRun=dry)
@@ -177,7 +304,8 @@ def get_sgs(client, name='tag:project', values=[ec2_project_name,], groups=[ec2_
     try:
         if groups:
             return client.describe_security_groups(Filters=[{'Name': 'group-name', 'Values': groups},], DryRun=dry)
-        return client.describe_security_groups(Filters=[{'Name': name, 'Values': values},], DryRun=dry)
+        else:
+            return client.describe_security_groups(Filters=[{'Name': name, 'Values': values},], DryRun=dry)
     except Exception as err:
         handle(err)
 
@@ -356,13 +484,16 @@ def delete_route_table(client, route_table_id, dry=True):
     except Exception as err:
         handle(err)
 
-def get_route_tables(client, name, values, dry=True):
+def get_route_tables(client, name, values, name1=None, values1=None, dry=True):
     """
     Get route tables by searching for vpc
     https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.describe_route_tables
     """
     try:
-        return client.describe_route_tables(Filters=[{'Name': name, 'Values': values}], DryRun=dry)
+        if name1 and values1:
+            return client.describe_route_tables(Filters=[{'Name': name, 'Values': values}, {'Name': name1, 'Values': values1}], DryRun=dry)
+        else:
+            return client.describe_route_tables(Filters=[{'Name': name, 'Values': values}], DryRun=dry)
     except Exception as err:
         handle(err)
 
@@ -592,7 +723,6 @@ def create_instance(ec2, sg_id, sn_id, image_id=ec2_ami, image_type=ec2_ami_type
 def delete_instance(instance, instances, dry=True):
     """
     Delete a ec2 instance
-    See https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.delete_security_group
     """
     try:
         print('Terminating instance %s' % ('(dry)' if dry else '') )
@@ -616,14 +746,17 @@ def get_instances(client, name, values, dry=True):
 ################################
 #### cleanup all resources #####
 ################################
-def clean_sgs(client, sg_id, dry):
+def clean_sgs(client, sg_id, sg_name, dry):
     revoke_sg_ingress(client, 22, 22, 'TCP',   sg_id, [{'CidrIp': '0.0.0.0/0'},], [], dry)
     revoke_sg_ingress(client, 80, 80, 'TCP',   sg_id, [{'CidrIp': '0.0.0.0/0'},], [], dry)
     revoke_sg_ingress(client, 443, 443, 'TCP', sg_id, [{'CidrIp': '0.0.0.0/0'},], [], dry)
     revoke_sg_egress(client, 22, 22, 'TCP',    sg_id, [{'CidrIp': '0.0.0.0/0'},], [], dry)
     revoke_sg_egress(client, 80, 80, 'TCP',    sg_id, [{'CidrIp': '0.0.0.0/0'},], [], dry)
     revoke_sg_egress(client, 443, 443, 'TCP',  sg_id, [{'CidrIp': '0.0.0.0/0'},], [], dry)
-    delete_sg(client, sg_id, dry)
+    if sg_name != 'default':
+        time.sleep(5)
+        print('Deleting sg %s' % sg_id)
+        delete_sg(client, sg_id, dry)
 
 
 def clean(ec2, client):
@@ -635,6 +768,23 @@ def clean(ec2, client):
             if vpcs and "Vpcs" in vpcs and vpcs['Vpcs']:
                 for vpc in vpcs['Vpcs']:
                     ec2_vpc_id = vpc['VpcId']
+                    print('Found: %s' % ec2_vpc_id)
+
+                    ### VPC ENDPOINTS ###
+                    endpoints = get_vpcs_endpoints(client, 'vpc-id', [ec2_vpc_id,], dry)
+                    if endpoints and 'VpcEndpoints' in endpoints and endpoints['VpcEndpoints']:
+                        for endpoint in endpoints['VpcEndpoints']:
+                            delete_vpc_endpoints(client, endpoint['VpcEndpointId'], dry)
+                    else:
+                        print('No vpc endpoints detected')
+
+                    ### VPC CONNECTION ENDPOINTS ###
+                    conn_endpoints = get_vpcs_peering_connections(client, 'tag:project', [ec2_project_name], dry)
+                    if conn_endpoints and 'VpcPeeringConnections' in conn_endpoints and conn_endpoints['VpcPeeringConnections']:
+                        for conn_endpoint in conn_endpoints['VpcPeeringConnections']:
+                            delete_vpcs_peering_endpoints(client, conn_endpoint['VpcPeeringConnectionId'], dry)
+                    else:
+                        print('No vpc connection endpoints detected')
 
                     ### EC2 INSTANCES ###
                     instances = get_instances(client, 'vpc-id', [ec2_vpc_id,], dry)
@@ -664,6 +814,14 @@ def clean(ec2, client):
                     else:
                         print('No internet gateways detected')
 
+                    ### NETWORK INTERFACES ###
+                    network_interfaces = get_network_interfaces(client, 'group-name', [ec2_group_name], None, dry)
+                    if network_interfaces and "NetworkInterfaces" in network_interfaces and network_interfaces['NetworkInterfaces']:
+                        for iface in network_interfaces['NetworkInterfaces']:
+                            delete_network_interface(client, iface ['NetworkInterfaceId'], dry)
+                    else:
+                        print('No network interfaces detected')
+
                     ### SUBNETS ###
                     subnets = get_subnets(client, 'vpc-id', [ec2_vpc_id,], dry)
                     if subnets and "Subnets" in subnets and subnets['Subnets']:
@@ -671,6 +829,24 @@ def clean(ec2, client):
                             delete_subnet(client, sn['SubnetId'], dry)
                     else:
                         print('No subnets detected')
+
+                    ### ROUTE TABLES ###
+                    route_tables = get_route_tables(client, 'vpc-id', [ec2_vpc_id,], 'association.main', False, dry)
+                    if route_tables and "RouteTables" in route_tables and route_tables['RouteTables']:
+                        for rt in route_tables['RouteTables']:
+                            if rt['Associations']:
+                                if rt['Associations'][0]['Main']:
+                                    print('Skipping main route table')
+                                else:
+                                    disassociate_route_table(client, rt['Associations'][0]['RouteTableAssociationId'], dry)
+                                    delete_route(client, '0.0.0.0/0',    rt['RouteTableId'], dry)
+                                    delete_route(client, '::/0',         rt['RouteTableId'], dry)
+                                    delete_route(client, ec2_cidr_block, rt['RouteTableId'], dry)
+                                    delete_route_table(client, rt['RouteTableId'], dry)
+                            else:
+                                delete_route_table(client, rt['RouteTableId'], dry)
+                    else:
+                        print('No route tables detected')
 
                     ### NAT GATEWAY ###
                     gateways = get_nat_gateways(client, 'vpc-id', [ec2_vpc_id,], dry)
@@ -702,26 +878,20 @@ def clean(ec2, client):
                             if refs and "SecurityGroupReferenceSet" in refs and refs['SecurityGroupReferenceSet']:
                                 for ref in refs['SecurityGroupReferenceSet']:
                                     for rg in get_sgs(client, 'vpc-id', [ref[0]['ReferencingVpcId'],], dry):
-                                        clean_sgs(client, rg, dry)
+                                        clean_sgs(client, rg['GroupId'], rg['GroupName'], dry)
                             else:
                                 print('No referencing security groups detected')
-                            clean_sgs(client, sg['GroupId'], dry)
+                            clean_sgs(client, sg['GroupId'], sg['GroupName'], dry)
                     else:
                         print('No security groups detected')
 
-                    ### ROUTE TABLE ###
-                    route_tables = get_route_tables(client, 'vpc-id', [ec2_vpc_id,], dry)
-                    if route_tables and "RouteTables" in route_tables and route_tables['RouteTables']:
-                        for rt in route_tables['RouteTables']:
-                            if rt['Associations']:
-                                disassociate_route_table(client, rt['Associations'][0]['RouteTableAssociationId'], dry)
-                            delete_route(client, '0.0.0.0/0',    rt['RouteTableId'], dry)
-                            delete_route(client, '::/0',         rt['RouteTableId'], dry)
-                            delete_route(client, ec2_cidr_block, rt['RouteTableId'], dry)
-                            delete_route_table(client, rt['RouteTableId'], dry)
-
                     ### VPC ###
-                    delete_vpc(client, ec2_vpc_id, dry)
+                    check = get_vpcs(client, 'vpc-id', [ec2_vpc_id,], dry)
+                    if check and 'Vpcs' in check and check['Vpcs']:
+                        print('Deleting VPC %s' % ec2_vpc_id)
+                        delete_vpc(client, ec2_vpc_id, dry)
+                    else:
+                        print('Security group %s already deleted' % ec2_vpc_id)
 
             else:
                 print('No VPCs found')
@@ -736,6 +906,7 @@ def start(ec2, client):
     for dry in (True, False):
         try:
             print("\nCREATE EC2 ENVIRON %s" % ('dry' if dry else 'for real, please be patient'))
+            ### VPC ###
             ec2_vpc_id = create_vpc(client, ec2_project_name, ec2_cidr_block, True, 'default', dry)
             if ec2_vpc_id:
                 ec2_vpc_id = ec2_vpc_id['Vpc']['VpcId']
@@ -843,8 +1014,8 @@ def main(argv):
         else:
             usage()
 
-    client = boto3.client('ec2', region_name=ec2_region_name)
-    ec2 = boto3.resource('ec2')
+    ec2 = boto3.resource('ec2', region_name=ec2_region_name)
+    client = ec2.meta.client
     tag = ec2.Tag('resource_id', 'key', 'value')
 
     ### workflow ###
