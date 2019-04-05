@@ -1,18 +1,19 @@
 #!/usr/bin/env python3
 
-import sys, os, getopt, boto3, botocore, time
+import sys, os, getopt, boto3, botocore, time, base64
 
-ec2_keypair_name='ec2_user'
+my_group='mygroupname'
+my_name='boto3utils-project'
+my_desc='boto3utils-project'
+my_region='eu-west-1'
+my_peering_region='eu-west-2'
+
+ec2_keypair='ec2_user'
 ec2_ami='ami-0fad7378adf284ce0'
 ec2_ami_type='t2.micro'
 ec2_cidr_block='172.35.0.0/24'
-ec2_group_name='mygroupname'
-ec2_instance_id=None
-ec2_project_name='boto3utils project'
-ec2_region_name='eu-west-1'
-ec2_peering_region_name='eu-west-1'
 
-ec2_userdata="""
+ec2_userdata=b'''
 #!/bin/bash
 yum update -y
 amazon-linux-extras install -y lamp-mariadb10.2-php7.2 php7.2
@@ -25,7 +26,8 @@ chmod 2775 /var/www
 find /var/www -type d -exec chmod 2775 {} \;
 find /var/www -type f -exec chmod 0664 {} \;
 echo "<?php phpinfo(); ?>" > /var/www/html/phpinfo.php
-"""
+'''
+
 
 ########### FUNCTIONS ############
 
@@ -55,7 +57,7 @@ def handle(error=None, resource=None):
 ### VPCS ###
 ############
 
-def create_vpc(client, name=ec2_project_name, cidr_ipv4=ec2_cidr_block, autoipv6=False, tenancy='default', dry=True):
+def create_vpc(client, name=my_name, cidr_ipv4=ec2_cidr_block, autoipv6=False, tenancy='default', dry=True):
     """
     Create a virtual private cloud.
     https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.create_vpc
@@ -80,7 +82,7 @@ def delete_vpc(client, vpc_id, dry=True):
     except Exception as err:
         handle(err, 'vpc')
 
-def get_vpcs(client, name='tag:project', values=[ec2_project_name,], dry=True):
+def get_vpcs(client, name='tag:project', values=[my_name,], dry=True):
     """
     Get VPC(s) by filter
     https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.describe_vpcs
@@ -120,7 +122,7 @@ def delete_vpc_endpoints(client, vpc_endpoint_id, dry=True):
     except Exception as err:
         handle(err)
 
-def get_vpcs_endpoints(client, name='tag:project', values=[ec2_project_name,], dry=True):
+def get_vpcs_endpoints(client, name='tag:project', values=[my_name,], dry=True):
     """
     Get VPC(s) by endpoints filter
     https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.describe_vpc_endpoints
@@ -135,7 +137,7 @@ def get_vpcs_endpoints(client, name='tag:project', values=[ec2_project_name,], d
 ### VPC PEERING CONNECTIONS ##
 ##############################
 
-def create_vpc_peering_connection(client, peer_vpc_id, vpc_id, region=ec2_peering_region_name, dry=True):
+def create_vpc_peering_connection(client, peer_vpc_id, vpc_id, region=my_peering_region, dry=True):
     """
     Create a virtual private cloud peering connection
     https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.create_vpc_peering_connection
@@ -160,7 +162,7 @@ def delete_vpc_peering_connection(client, vpc_peering_connection_id, dry=True):
     except Exception as err:
         handle(err)
 
-def get_vpcs_peering_connections(client, name='tag:project', values=[ec2_project_name,], vpc_peering_connection_ids=None, dry=True):
+def get_vpcs_peering_connections(client, name='tag:project', values=[my_name,], vpc_peering_connection_ids=None, dry=True):
     """-
     Get VPC(s) by peering_connections filter
     https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.describe_vpc_peering_connections
@@ -178,7 +180,7 @@ def get_vpcs_peering_connections(client, name='tag:project', values=[ec2_project
 ### NETWORK INTERFACES ###
 ##########################
 
-def create_network_interface(client, desc=ec2_project_name, groups=None, private_ip=None, private_ips=None, subnet_id=None, dry=True):
+def create_network_interface(client, desc=my_name, groups=None, private_ip=None, private_ips=None, subnet_id=None, dry=True):
     """
     Create a network_interface.
     https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.create_network_interface
@@ -220,7 +222,7 @@ def get_network_interfaces(client, name='vpc-id', values=None, network_interface
 ### SUBNET ###
 ##############
 
-def create_subnet(client, vpc_id, name=ec2_project_name, cidr_ipv4=ec2_cidr_block, dry=True):
+def create_subnet(client, vpc_id, name=my_name, cidr_ipv4=ec2_cidr_block, dry=True):
     """
     Create a subnet.
     https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.create_subnet
@@ -258,7 +260,7 @@ def delete_subnet(client, subnet, dry=True):
     except Exception as err:
         handle(err)
 
-def get_subnets(client, name='tag:project', values=[ec2_project_name,], dry=True):
+def get_subnets(client, name='tag:project', values=[my_name,], dry=True):
     """
     Get VPC(s) by tag (note: create_tags not working via client api, use cidr or object_id instead )
     https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.describe_subnets
@@ -272,7 +274,7 @@ def get_subnets(client, name='tag:project', values=[ec2_project_name,], dry=True
 ### SECURITY GROUPS ###
 #######################
 
-def create_sg(client, vpc_id, desc=ec2_project_name, groupname=ec2_group_name, dry=True):
+def create_sg(client, vpc_id, desc=my_name, groupname=my_group, dry=True):
     """
     Create security group.
     https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.create_security_group
@@ -296,7 +298,7 @@ def delete_sg(client, sg_id, dry=True):
     except Exception as err:
         handle(err)
 
-def get_sgs(client, name='tag:project', values=[ec2_project_name,], groups=[ec2_group_name,], dry=True):
+def get_sgs(client, name='tag:project', values=[my_name,], groups=[my_group,], dry=True):
     """
     Get Security Groups by searching for VPC Id.
     https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.describe_security_groups
@@ -703,18 +705,70 @@ def detach_internet_gateway(client, gateway_id, vpc_id, dry=True):
     except Exception as err:
         handle(err)
 
+###########################
+### EC2 LAUNCH TEMPLATE ###
+###########################
+
+def create_launch_template(client, name, desc, keyname, sn_id, sg_ids, userdata, ami_id=ec2_ami, ami_type=ec2_ami_type, dry=True):
+    """
+    Create a new Amazon launch_template with boto3.
+    https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.create_launch_template
+    https://github.com/terraform-providers/terraform-provider-aws/issues/5530
+    """
+    try:
+        data = { 'EbsOptimized': False,
+                 'NetworkInterfaces': [{'SubnetId': sn_id, 'AssociatePublicIpAddress': True, 'Groups': sg_ids},],
+                 'ImageId': ami_id,
+                 'InstanceType': ami_type,
+                 'KeyName': keyname,
+                 'Monitoring': { 'Enabled': False, },
+                 'Placement': { 'AvailabilityZone': my_region, },
+                 'InstanceInitiatedShutdownBehavior': 'terminate',
+                 'UserData': base64.b64encode(userdata).decode("ascii"),
+                 'SecurityGroupIds': sg_ids }
+
+        response = client.create_launch_template(LaunchTemplateName=name, VersionDescription=desc, LaunchTemplateData=data, DryRun=dry)
+        print('Creating launch_template %s' % ('(dry)' if dry else '') )
+        return response
+    except Exception as err:
+        handle(err)
+
+def delete_launch_template(client, id, name, dry=True):
+    """
+    Delete a ec2 launch_template
+    https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.delete_launch_template
+    """
+    try:
+        if id:
+            client.delete_launch_template(LaunchTemplateId=id, DryRun=dry)
+        else:
+            client.delete_launch_template(LaunchTemplateName=name, DryRun=dry)
+        print('Delete launch_template %s %s %s' % ((id if id else ''), (name if name else ''), ('(dry)' if dry else '')))
+    except Exception as err:
+        handle(err)
+
+def get_launch_templates(client, name, values, dry=True):
+    """
+    Get EC2 launch_templates by searching filters
+    https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.describe_launch_templates
+    """
+    try:
+        return client.describe_launch_templates(Filters=[{'Name': name, 'Values': values},], DryRun=dry)
+    except Exception as err:
+        handle(err)
+
 
 ####################
-### EC2 RESOURCE ###
+### EC2 INSTANCE ###
 ####################
 
-def create_instance(ec2, sg_id, sn_id, image_id=ec2_ami, image_type=ec2_ami_type, userdata='', key=ec2_keypair_name, dry=True):
+def create_instance(ec2, sg_id, sn_id, image_id=ec2_ami, instance_type=ec2_ami_type, userdata=ec2_userdata, key=ec2_keypair, dry=True):
     """
     Create and launch a new Amazon EC2 micro instance with boto3.
     Launch a free tier Amazon Linux AMI using your Amazon credentials.
     """
     try:
-        response = ec2.create_instances(ImageId=image_id, MaxCount=1, MinCount=1, InstanceType=image_type, SecurityGroupIds=[sg_id,], SubnetId=sn_id, UserData=userdata, KeyName=key, DryRun=dry)
+        response = ec2.create_instances(ImageId=image_id, MaxCount=1, MinCount=1, InstanceType=instance_type, SecurityGroupIds=[sg_id,], SubnetId=sn_id, UserData=userdata, KeyName=key, DryRun=dry)
         print('Creating instance %s' % ('(dry)' if dry else '') )
         return response
     except Exception as err:
@@ -741,7 +795,6 @@ def get_instances(client, name, values, dry=True):
         return client.describe_instances(Filters=[{'Name': name, 'Values': values},], DryRun=dry)
     except Exception as err:
         handle(err)
-
 
 ################################
 #### cleanup all resources #####
@@ -779,7 +832,7 @@ def clean(ec2, client):
                         print('No vpc endpoints detected')
 
                     ### VPC CONNECTION ENDPOINTS ###
-                    conn_endpoints = get_vpcs_peering_connections(client, 'tag:project', [ec2_project_name], dry)
+                    conn_endpoints = get_vpcs_peering_connections(client, 'tag:project', [my_name], dry)
                     if conn_endpoints and 'VpcPeeringConnections' in conn_endpoints and conn_endpoints['VpcPeeringConnections']:
                         for conn_endpoint in conn_endpoints['VpcPeeringConnections']:
                             delete_vpcs_peering_endpoints(client, conn_endpoint['VpcPeeringConnectionId'], dry)
@@ -796,7 +849,8 @@ def clean(ec2, client):
                             eips = get_elastic_ips(client, 'domain', ['vpc',], [ec2_instance_id,], dry)
                             if eips and "Addresses" in eips and eips['Addresses']:
                                 for ip in eips['Addresses']:
-                                    disassociate_elastic_ip(client, ip['AssociationId'], dry)
+                                    if ip['AssociationId'] and ip['AssociationId'] != '-':
+                                        disassociate_elastic_ip(client, ip['AssociationId'], dry)
                                     release_elastic_ip(client, ip['AllocationId'], ip['PublicIp'], dry)
                             else:
                                 print('No elastic ips detected')
@@ -804,6 +858,22 @@ def clean(ec2, client):
                             delete_instance( ec2.Instance(ec2_instance_id), [ec2_instance_id,], dry)
                     else:
                         print('No ec2 instances detected')
+
+                        ### Dangling elastic ips ###
+                        eips = get_elastic_ips(client, 'domain', ['vpc',], None, dry)
+                        if eips and "Addresses" in eips and eips['Addresses']:
+                            for ip in eips['Addresses']:
+                                if 'AssociationId' in ip and ip['AssociationId']:
+                                    disassociate_elastic_ip(client, ip['AssociationId'], dry)
+                                release_elastic_ip(client, ip['AllocationId'], ip['PublicIp'], dry)
+
+                    ### INSTANCE TEMPLATES ###
+                    templates = get_launch_templates(client, 'launch-template-name', [my_name,], dry)
+                    if templates and 'LaunchTemplates' in templates and templates['LaunchTemplates']:
+                        for template in templates['LaunchTemplates']:
+                            delete_launch_template(client, template['LaunchTemplateId'], template['LaunchTemplateName'], dry)
+                    else:
+                        print('No launch templates detected')
 
                     ### INTERNET GATEWAY ###
                     gateways = get_internet_gateways(client, 'attachment.vpc-id', [ec2_vpc_id,], dry)
@@ -815,7 +885,7 @@ def clean(ec2, client):
                         print('No internet gateways detected')
 
                     ### NETWORK INTERFACES ###
-                    network_interfaces = get_network_interfaces(client, 'group-name', [ec2_group_name], None, dry)
+                    network_interfaces = get_network_interfaces(client, 'group-name', [my_group], None, dry)
                     if network_interfaces and "NetworkInterfaces" in network_interfaces and network_interfaces['NetworkInterfaces']:
                         for iface in network_interfaces['NetworkInterfaces']:
                             delete_network_interface(client, iface ['NetworkInterfaceId'], dry)
@@ -869,7 +939,7 @@ def clean(ec2, client):
                         print('No network acls detected')
 
                     ### SECURITY GROUPS ###
-                    sgs = get_sgs(client, 'vpc-id', [ec2_vpc_id,], [ec2_group_name,], dry)
+                    sgs = get_sgs(client, 'vpc-id', [ec2_vpc_id,], [my_group,], dry)
                     if sgs and "SecurityGroups" in sgs and sgs['SecurityGroups']:
                         for sg in sgs['SecurityGroups']:
 
@@ -906,8 +976,9 @@ def start(ec2, client):
     for dry in (True, False):
         try:
             print("\nCREATE EC2 ENVIRON %s" % ('dry' if dry else 'for real, please be patient'))
+
             ### VPC ###
-            ec2_vpc_id = create_vpc(client, ec2_project_name, ec2_cidr_block, True, 'default', dry)
+            ec2_vpc_id = create_vpc(client, my_name, ec2_cidr_block, True, 'default', dry)
             if ec2_vpc_id:
                 ec2_vpc_id = ec2_vpc_id['Vpc']['VpcId']
                 ec2_elastic_ip_alloc_id=None
@@ -928,7 +999,7 @@ def start(ec2, client):
                     create_route(client, 'ipv6', '::/0',      ec2_igw_id, ec2_route_table_id, dry)
 
                 ### SUBNET ###
-                ec2_subnet_id = create_subnet(client, ec2_vpc_id, ec2_project_name, ec2_cidr_block, dry)
+                ec2_subnet_id = create_subnet(client, ec2_vpc_id, my_name, ec2_cidr_block, dry)
                 if ec2_subnet_id:
                     ec2_subnet_id = ec2_subnet_id['Subnet']['SubnetId']
                     modify_subnet_attribute(client, ec2_subnet_id, True, dry)
@@ -952,7 +1023,7 @@ def start(ec2, client):
                     #    ec2_nat_gw_id = ec2_nat_gw_id['NatGateway']['NatGatewayId']
 
                 ### SECURITY GROUP ###
-                ec2_sg_id = create_sg(client, ec2_vpc_id, ec2_project_name, ec2_group_name, dry)
+                ec2_sg_id = create_sg(client, ec2_vpc_id, my_name, my_group, dry)
                 if ec2_sg_id:
                     ec2_sg_id = ec2_sg_id['GroupId']
                     authorize_sg_ingress(client, 22, 22, 'TCP',   ec2_sg_id, [{'CidrIp': '0.0.0.0/0'},], [{'CidrIpv6': '::/0'},], dry)
@@ -962,8 +1033,13 @@ def start(ec2, client):
                     authorize_sg_egress(client, 80, 80, 'TCP',    ec2_sg_id, [{'CidrIp': '0.0.0.0/0'},], [{'CidrIpv6': '::/0'},], dry)
                     authorize_sg_egress(client, 443, 443, 'TCP',  ec2_sg_id, [{'CidrIp': '0.0.0.0/0'},], [{'CidrIpv6': '::/0'},], dry)
 
+                    ### EC2 LAUNCH TEMPLATE ###
+                    template = create_launch_template(client, my_name, my_desc, ec2_keypair, ec2_subnet_id, [ec2_sg_id,], ec2_userdata, ec2_ami, ec2_ami_type, dry)
+                    if template and template['LaunchTemplate']:
+                        pass
+
                     ### EC2 INSTANCE ###
-                    instance = create_instance(ec2, ec2_sg_id, ec2_subnet_id, ec2_ami, ec2_ami_type, ec2_userdata, ec2_keypair_name, dry)
+                    instance = create_instance(ec2, ec2_sg_id, ec2_subnet_id, ec2_ami, ec2_ami_type, ec2_userdata, ec2_keypair, dry)
                     if instance and instance[0]:
                         ec2_instance_id = instance[0].id
                         if ec2_instance_id:
@@ -1014,7 +1090,7 @@ def main(argv):
         else:
             usage()
 
-    ec2 = boto3.resource('ec2', region_name=ec2_region_name)
+    ec2 = boto3.resource('ec2', region_name=my_region)
     client = ec2.meta.client
     tag = ec2.Tag('resource_id', 'key', 'value')
 
