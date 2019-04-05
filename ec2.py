@@ -2,9 +2,8 @@
 
 import sys, os, getopt, boto3, botocore, time, base64
 
-my_group='mygroupname'
 my_name='boto3utils-project'
-my_desc='boto3utils-project'
+my_desc='boto3utils project'
 my_region='eu-west-1'
 my_peering_region='eu-west-2'
 
@@ -26,6 +25,7 @@ chmod 2775 /var/www
 find /var/www -type d -exec chmod 2775 {} \;
 find /var/www -type f -exec chmod 0664 {} \;
 echo "<?php phpinfo(); ?>" > /var/www/html/phpinfo.php
+echo "Created by AWS Boto3 SDK" >> /var/www/html/index.html
 '''
 
 
@@ -274,7 +274,7 @@ def get_subnets(client, name='tag:project', values=[my_name,], dry=True):
 ### SECURITY GROUPS ###
 #######################
 
-def create_sg(client, vpc_id, desc=my_name, groupname=my_group, dry=True):
+def create_sg(client, vpc_id, groupname=my_name, desc=my_desc, dry=True):
     """
     Create security group.
     https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.create_security_group
@@ -298,16 +298,13 @@ def delete_sg(client, sg_id, dry=True):
     except Exception as err:
         handle(err)
 
-def get_sgs(client, name='tag:project', values=[my_name,], groups=[my_group,], dry=True):
+def get_sgs(client, name='tag:project', values=[my_name,], dry=True):
     """
     Get Security Groups by searching for VPC Id.
     https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.describe_security_groups
     """
     try:
-        if groups:
-            return client.describe_security_groups(Filters=[{'Name': 'group-name', 'Values': groups},], DryRun=dry)
-        else:
-            return client.describe_security_groups(Filters=[{'Name': name, 'Values': values},], DryRun=dry)
+        return client.describe_security_groups(Filters=[{'Name': name, 'Values': values},], DryRun=dry)
     except Exception as err:
         handle(err)
 
@@ -885,7 +882,7 @@ def clean(ec2, client):
                         print('No internet gateways detected')
 
                     ### NETWORK INTERFACES ###
-                    network_interfaces = get_network_interfaces(client, 'group-name', [my_group], None, dry)
+                    network_interfaces = get_network_interfaces(client, 'group-name', [my_name], None, dry)
                     if network_interfaces and "NetworkInterfaces" in network_interfaces and network_interfaces['NetworkInterfaces']:
                         for iface in network_interfaces['NetworkInterfaces']:
                             delete_network_interface(client, iface ['NetworkInterfaceId'], dry)
@@ -939,7 +936,7 @@ def clean(ec2, client):
                         print('No network acls detected')
 
                     ### SECURITY GROUPS ###
-                    sgs = get_sgs(client, 'vpc-id', [ec2_vpc_id,], [my_group,], dry)
+                    sgs = get_sgs(client, 'vpc-id', [ec2_vpc_id,], dry)
                     if sgs and "SecurityGroups" in sgs and sgs['SecurityGroups']:
                         for sg in sgs['SecurityGroups']:
 
@@ -969,13 +966,13 @@ def clean(ec2, client):
             handle(err)
     return(0)
 
-##########################
-#### Create resources ####
-##########################
+#####################
+#### Create VPC  ####
+#####################
 def start(ec2, client):
     for dry in (True, False):
         try:
-            print("\nCREATE EC2 ENVIRON %s" % ('dry' if dry else 'for real, please be patient'))
+            print("\nCreate VPC environment %s" % ('dry' if dry else 'for real, please be patient'))
 
             ### VPC ###
             ec2_vpc_id = create_vpc(client, my_name, ec2_cidr_block, True, 'default', dry)
@@ -1023,7 +1020,7 @@ def start(ec2, client):
                     #    ec2_nat_gw_id = ec2_nat_gw_id['NatGateway']['NatGatewayId']
 
                 ### SECURITY GROUP ###
-                ec2_sg_id = create_sg(client, ec2_vpc_id, my_name, my_group, dry)
+                ec2_sg_id = create_sg(client, ec2_vpc_id, my_name, my_desc, dry)
                 if ec2_sg_id:
                     ec2_sg_id = ec2_sg_id['GroupId']
                     authorize_sg_ingress(client, 22, 22, 'TCP',   ec2_sg_id, [{'CidrIp': '0.0.0.0/0'},], [{'CidrIpv6': '::/0'},], dry)
@@ -1091,6 +1088,7 @@ def main(argv):
             usage()
 
     ec2 = boto3.resource('ec2', region_name=my_region)
+    #elb = boto3.resource('elb')
     client = ec2.meta.client
     tag = ec2.Tag('resource_id', 'key', 'value')
 
