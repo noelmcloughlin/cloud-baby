@@ -1,86 +1,93 @@
 ================
-boto3utils
+cloud-cli
 ================
 
-EC2 Usage
+AWS Boto3 Client SDK
 ======
 
-Clean EC2 Environment::
-
-            $ ./ec2.py -a clean
+Usage::
             
-            CLEAN DOWN EC2 ENVIRON dry
-            No VPCs found
+            $ ./ec2_client.py
             
-            CLEAN DOWN EC2 ENVIRON for real, please be patient
-            No VPCs found
+            ec2_client.py Usage:
+            
+            	-a --action	start | clean 
+            
+            	[ -n --name	Private Cloud Name (default: 'boto3-client-sdk')
+            
+            	[ -z --region	Cloud Region (default 'eu-west-1)
+            
+            	[ -c --cidr	IPv4 Cidr Block (default: '172.35.0.0/24'
+                        
             
 Create EC2 Environment::
 
-            $ ./ec2.py -a start
+            $ ./ec2_client.py -a start
+
+            Create Compute instance in VPC [dry]
+            Create vpc (dry)
+            Create vpc 
+            Create tag vpc-tag = boto3-client-sdk for vpc-031460035ad958412 
+            Create tag internet-gateway-tag = boto3-client-sdk for igw-0d10e2128fa05e7eb 
+            Create internet gateway 
+            Attache igw-0d10e2128fa05e7eb to vpc-031460035ad958412 
+            Create tag route-table-tag = boto3-client-sdk for rtb-0dd26a22dc02d7806 
+            Create route table for vpc-031460035ad958412 
+            Create ipv4 route for 172.35.0.0/24 
+            Create ipv6 route for ::/0 
+            Create tag subnet-tag = boto3-client-sdk for subnet-0fda057182992e42a 
+            Create subnet for 172.35.0.0/24 
+            Map subnet-0fda057182992e42a public-ip-on-launch True (dry)
+            Create tag network-acl-tag = boto3-client-sdk for acl-06493b14d8cfdd71a 
+            Create network acl for vpc-031460035ad958412 
+            Create network acl entry for acl-06493b14d8cfdd71a 
+            Create network acl entry for acl-06493b14d8cfdd71a 
+            Associate route table rtb-0dd26a22dc02d7806 to subnet-0fda057182992e42a 
+            Create tag elastic-ip-tag = boto3-client-sdk for eipalloc-07028af9bd61213e6 
+            Create elastic ip eipalloc-07028af9bd61213e6 for vpc 
+            Create tag security-group-tag = boto3-client-sdk for sg-0ac9db80ee389ba13 
+            Create security group 
+            Authorize sg ingress sg-0ac9db80ee389ba13 
+            Authorize sg ingress sg-0ac9db80ee389ba13 
+            Authorize sg ingress sg-0ac9db80ee389ba13 
+            Authorize sg egress sg-0ac9db80ee389ba13 
+            Authorize sg egress sg-0ac9db80ee389ba13 
+            Authorize sg egress sg-0ac9db80ee389ba13 
+            Create tag launch-template-tag = boto3-client-sdk for lt-055e69c0ae3257568 
+            Create launch_template 
+            Create Instance from lt-055e69c0ae3257568
+            Associate elastic ip eipalloc-07028af9bd61213e6 with i-0d3fdfac46a2f8f6c 
+            created Instance i-0d3fdfac46a2f8f6c i-0d3fdfac46a2f8f6c
             
-            CREATE EC2 ENVIRON dry
-            No VPCs found
-            
-            CREATE EC2 ENVIRON for real, please be patient
-            Created vpc 
-            Created internet gateway 
-            Attached igw-0b6f244d938831127 to vpc-07cd4a06b07e3be51 
-            Created route table for vpc-07cd4a06b07e3be51 
-            Created ipv4 route for 0.0.0.0/0 
-            Created ipv6 route for ::/0 
-            Created subnet for 172.35.0.0/24 
-            Map subnet subnet-0df31d9358cea4fc3 public-ip-on-launch True 
-            Created network acl for vpc-07cd4a06b07e3be51 
-            Created network acl entry for acl-0bc53273a0c3af215 
-            Created network acl entry for acl-0bc53273a0c3af215 
-            Created elastic ip for vpc 
-            Created security group 
-            Authorized sg ingress sg-0aa4db0c1b254c200 
-            Authorized sg ingress sg-0aa4db0c1b254c200 
-            Authorized sg ingress sg-0aa4db0c1b254c200 
-            Authorized sg egress sg-0aa4db0c1b254c200 
-            Authorized sg egress sg-0aa4db0c1b254c200 
-            Authorized sg egress sg-0aa4db0c1b254c200 
-            Creating instance 
-            Associated elastic ip with i-0627ca89af44cc734 
-            Associated route table rtb-0ccea9e7070082233 to subnet-0df31d9358cea4fc3 
-            created Instance i-0627ca89af44cc734 i-0627ca89af44cc734
 
 Clean EC2 Environment::
 
-            $ ./ec2.py -a clean
+            $ ./ec2_client.py -a clean
+
+            Tear down EC2 instance and VPC [dry]
+            No VPCs found
             
-            CLEAN DOWN EC2 ENVIRON dry
-            CLEAN DOWN EC2 ENVIRON for real, please be patient
-            Disassociated elastic ip eipassoc-0f0ddecb673216bd8 
-            Released eipalloc-001f8ac89d49b637e 99.80.72.164 
-            Terminating instance 
-            Terminated instance 
-            Revoked sg ingress from sg-08b5888e6cf2267ea 
-            Revoked sg ingress from sg-08b5888e6cf2267ea 
-            Revoked sg ingress from sg-08b5888e6cf2267ea 
-            Revoked sg egress sg-08b5888e6cf2267ea 
-            Revoked sg egress sg-08b5888e6cf2267ea 
-            Revoked sg egress sg-08b5888e6cf2267ea 
-            Deleted sg-08b5888e6cf2267ea 
-            Detached igw-03dfcf0e8a880ca28 from vpc-0164f4e81a7d7b1e3 
-            Deleted internet gateway igw-03dfcf0e8a880ca28 
-            Deleted subnet-08c94374fab7f81f4 
+            Tear down EC2 instance and VPC, please be patient
+            Found: vpc-031460035ad958412
+            No vpc endpoints detected
+            No vpc connection endpoints detected
+            No ec2 instances detected
+            Disassociate elastic ip eipassoc-005af48d2992d5cc3 
+            Release eipalloc-07028af9bd61213e6 
+            Delete launch_template lt-055e69c0ae3257568 launch-template-tag
+            Detache igw-0d10e2128fa05e7eb from vpc-031460035ad958412 
+            Delete internet gateway igw-0d10e2128fa05e7eb 
+            No network interfaces detected
+            Delete subnet-0fda057182992e42a 
+            Delete rtb-0dd26a22dc02d7806 
+            Skipping main route table
             No nat gateways detected
-            Deleted acl-0eb611c79eb75bff2 
-            Deleted acl-0eb611c79eb75bff2 
-            Deleted acl-0eb611c79eb75bff2 
-            Deleted route table rtb-0ccea9e7070082233
-            Deleted vpc-0164f4e81a7d7b1e3 
-
-
-Testing
-=======
-EC2 instance startup::
-
-            $ ./run_newwebserver.py -i start
-
-S3 bucket and web server hosted on EC2::
-
-            $ ./run_newwebserver.py -o start -n fjkdjkernoelmcloghlin-3324433666 -f files/margaret_hamilton_1969.jpeg -h 63.35.96.165 -k ~/.aws/ec2_user.pem 
+            Delete acl-06493b14d8cfdd71a 
+            Delete acl-06493b14d8cfdd71a 
+            Delete acl-06493b14d8cfdd71a 
+            Delete acl-06493b14d8cfdd71a 
+            Delete acl-06493b14d8cfdd71a 
+            No referencing security groups detected
+            Deleting security group sg-0ac9db80ee389ba13
+            Delete sg-0ac9db80ee389ba13 
+            Delete vpc-031460035ad958412 
