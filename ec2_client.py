@@ -8,10 +8,11 @@ sys.path.append('./lib')
 import boto3_ec2_client as sdk
 
 
-def launch_compute_vpc_instance(compute='ec2', name='boto3-client-sdk', zone='eu-west-1', zone_fqdn=None,
+def launch_compute_vpc_instance(service='ec2', name='boto3-client-sdk', region='eu-west-1', zone='eu-west-1a',
                                 cidr_block='172.35.0.0/24'):
+    compute = None
     try:
-        cloud = sdk.Compute(compute, zone, name, cidr_block)
+        cloud = sdk.Compute(service, region, zone, name, cidr_block)
         for dry in (True, False):
             print("\nCreate Compute instance in VPC%s" % ' [dry]' if dry else ', please be patient')
 
@@ -22,9 +23,9 @@ def launch_compute_vpc_instance(compute='ec2', name='boto3-client-sdk', zone='eu
                 if vpc_id:
 
                     acl_id = None
-                    eip_id = None
                     rtt_id = None
                     subnet_id = None
+                    eip_alloc_id = None
                     acl_associations_dict = None
 
                     # INTERNET GATEWAY
@@ -66,7 +67,7 @@ def launch_compute_vpc_instance(compute='ec2', name='boto3-client-sdk', zone='eu
                     # ELASTIC IP
                     compute = sdk.ElasticIp('vpc', dry)
                     if compute and compute.response and 'AllocationId' in compute.response:
-                        eip_id = compute.response['AllocationId']
+                        eip_alloc_id = compute.response['AllocationId']
 
                         # NAT GATEWAY
                         # compute = sdk.NatGateway(eip_id, subnet_id, dry)
@@ -85,7 +86,7 @@ def launch_compute_vpc_instance(compute='ec2', name='boto3-client-sdk', zone='eu
                         compute.auth_egress(443, 443, 'TCP', sg_id, [{'CidrIp': cidr_block}], [{'CidrIpv6': '::/0'}])
     
                         # LAUNCH TEMPLATE
-                        compute = sdk.LaunchTemplate(dry, 'launch-template-tag', cloud.desc, subnet_id, [sg_id])
+                        compute = sdk.LaunchTemplate(dry, 'launch-template-tag', cloud.desc, subnet_id, [sg_id], )
                         if compute and compute.response and 'LaunchTemplate' in compute.response:
                             template_id = compute.response['LaunchTemplate']['LaunchTemplateId']
 
@@ -93,13 +94,13 @@ def launch_compute_vpc_instance(compute='ec2', name='boto3-client-sdk', zone='eu
                             compute = sdk.Instance(template_id, 1, 1)
                             if compute and compute.instance_id:
                                 instance_id = compute.instance_id
-                                cloud.compute.Instance(instance_id)
-                                cloud.compute.wait_until_running(Filters=[{'Name': 'instance-id',
-                                                                 'Values': [instance_id]}], DryRun=dry)
+                                instance = cloud.compute.Instance(instance_id)
+                                instance.wait_until_running(Filters=[{'Name': 'instance-id', 'Values': [instance_id]}],
+                                                            DryRun=dry)
     
                                 # ELASTIC IP ASSOCIATION
-                                if eip_id:
-                                    compute = sdk.ElasticIp.associate(eip_id, instance_id, dry)
+                                if eip_alloc_id:
+                                    sdk.ElasticIp.associate(cloud, eip_alloc_id, instance_id, dry)
 
                                 # NETWORK ACL ASSOCIATION
                                 if subnet_id and acl_associations_dict:
@@ -108,17 +109,15 @@ def launch_compute_vpc_instance(compute='ec2', name='boto3-client-sdk', zone='eu
     
                                 print('created Instance %s %s' % (instance_id, ('(dry)' if dry else instance_id)))
                             else:
-                                print('failed to create instance')
-        else:
-            print('No VPCs found')
+                                print('failed to create instance (try "-d" param to debug')
     except Exception as err:
             sdk.Compute.handle(err, compute)
 
 
-def teardown_compute_vpc_instances(compute='ec2', name='boto3-client-sdk', zone='eu-west-1',
+def teardown_compute_vpc_instances(service='ec2', name='boto3-client-sdk', region='eu-west-1', zone='eu-west-1a',
                                    cidr_block='172.35.0.0/24'):
     try:
-        cloud = sdk.Compute(compute, zone, name, cidr_block)
+        cloud = sdk.Compute(service, region, zone, name, cidr_block)
         for dry in (True, False):
             print("\nTear down EC2 instance and VPC%s" % (' [dry]' if dry else ', please be patient'))
 
@@ -288,7 +287,7 @@ def usage():
     print("\n%s Usage:" % os.path.basename(__file__))
     print("\n\t-a --action\tstart | clean ")
     print("\n\t[ -n --name\tPrivate Cloud Name (default: 'boto3-client-sdk')")
-    print("\n\t[ -z --zone\tAvailability Zone (default 'eu-west-1'")
+    print("\n\t[ -z --region\tCloud Region (default 'eu-west-1)")
     print("\n\t[ -c --cidr\tIPv4 Cidr Block (default: '172.35.0.0/24'")
     print("\n")
     sys.exit(2)
@@ -297,17 +296,17 @@ def usage():
 def main(argv):
     opts = None
     try:
-        opts, args = getopt.getopt(argv, "a:n:z:c:d", ["action=", "name", "zone", "cidr", "debug"])
+        opts, args = getopt.getopt(argv, "a:n:r:c:d", ["action=", "name", "region", "cidr", "debug"])
     except getopt.GetoptError as e:
         sdk.Compute.fatal(e)
     
     if not opts:
         usage()
 
-    cloud = 'ec2'
     name = 'boto3-client-sdk'
-    zone = 'eu-west-1'
-    zone_fqdn = 'com.amazonaws.eu-west-1.ec2'
+    region = 'eu-west-1'
+    region_fqdn = 'com.amazonaws.eu-west-1.ec2'
+    cloud_service = 'ec2'
     cidr_block_ipv4 = '172.35.0.0/24'
     action = None
 
@@ -318,9 +317,9 @@ def main(argv):
             name = arg()
         elif opt in ("-c", "--cidr"):
             cidr_block_ipv4 = arg()
-        elif opt in ("-z", "--zone"):
-            zone = arg.lower()
-            zone_fqdn = 'com.amazonaws.' + zone + '.' + cloud
+        elif opt in ("-r", "--region"):
+            region = arg.lower()
+            region_fqdn = 'com.amazonaws.' + region + '.' + cloud_service
         elif opt in ("-d", "--debug"):
             import logging
             log = logging.getLogger('test')
@@ -332,9 +331,9 @@ def main(argv):
     
     # workflow
     if action == "start":
-        launch_compute_vpc_instance(cloud, name, zone, zone_fqdn, cidr_block_ipv4)
+        launch_compute_vpc_instance(cloud_service, name, region, region_fqdn, cidr_block_ipv4)
     elif action == "clean":
-        teardown_compute_vpc_instances(cloud, name, zone, cidr_block_ipv4)
+        teardown_compute_vpc_instances(cloud_service, name, region, cidr_block_ipv4)
     else:
         usage()
 

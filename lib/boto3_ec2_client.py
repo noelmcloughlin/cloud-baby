@@ -10,7 +10,7 @@ class Compute:
     COMPUTE
     """
 
-    def __init__(self, service='ec2', zone='eu-west-1', tag=default_desc, cidr='172.35.0.0/24'):
+    def __init__(self, service='ec2', region='eu-west-1', zone='eu-west-1a', tag=default_desc, cidr='172.35.0.0/24'):
         """
         Initialise data for Cloud Compute
         :type tag: String
@@ -20,6 +20,7 @@ class Compute:
         self.desc = tag
         self.name = service
         self.zone = zone
+        self.region = region
         self.user_data = b'''
 #!/bin/bash
 yum update -y
@@ -34,32 +35,27 @@ echo "Create by AWS Boto3 SDK" >> /var/www/html/index.html
 '''
 
         self.data = {'EbsOptimized': False,
-                     'NetworkInterfaces': [
-                               {'AssociatePublicIpAddress': True,
-                                'DeleteOnTermination': True,
-                                },
-                           ],
                      'ImageId': 'ami-0fad7378adf284ce0',
                      'InstanceType': 't2.micro',
                      'KeyName': 'ec2_user',
                      'Monitoring': {'Enabled': False},
-                     'Placement': {'AvailabilityZone': self.zone},
+                     # 'Placement': {'AvailabilityZone': self.zone},
                      'InstanceInitiatedShutdownBehavior': 'terminate',
                      'UserData': base64.b64encode(self.user_data).decode("ascii")
                      }
         self.client = boto3.client('ec2')
-        self.compute = boto3.resource('ec2', self.zone)
+        self.compute = boto3.resource('ec2', self.region)
         self.response = None
         self.instance_id = None
         self.cidr_block = cidr
         self.max_count = 1
         self.min_count = 1
 
-    def update_group_ids(self, group_ids):
-        self.data.update({'NetworkInterfaces': [{'Groups': group_ids}, ], 'SecurityGroupIds': group_ids, })
+    def update_network_interfaces(self, subnet_id=None, group_ids=None):
+        self.data['NetworkInterfaces'][0].update({'SubnetId': subnet_id, 'Groups': group_ids})
 
-    def update_subnet_id(self, subnet_id):
-        self.data.update({'NetworkInterfaces': [{'SubnetId': subnet_id}, ]})
+    def update_group_ids(self, group_ids):
+        self.data.update({'SecurityGroupIds': group_ids})
 
     def update_ami_id(self, ami_id):
         self.data.update({'ImageId': ami_id})
@@ -73,15 +69,17 @@ echo "Create by AWS Boto3 SDK" >> /var/www/html/index.html
     def update_availability_zone(self, zone):
         self.data.update({'Placement': {'AvailabilityZone': zone}})
 
-    def update_tag_specifications(self, service, tag_key, tag_value):
-        self.data['TagSpecifications'].append({'ResourceType': service,
-                                               'Tags': [{'Key': tag_key, 'Value': tag_value}, ]})
+    def update_key_name(self, key_name):
+        self.data.update({'KeyName': key_name})
 
     def set_max_count(self, max_count):
         self.max_count = max_count
 
     def set_min_count(self, min_count):
         self.min_count = min_count
+
+    def set_region(self, region):
+        self.region = region
 
     def create_tag(self, resource, tag_key, tag_value, dry=False):
         """
@@ -134,25 +132,25 @@ class LaunchTemplate(Compute):
     """
 
     def __init__(self, dry=False, name='launch-template-tag', desc=default_desc, subnet_id=None, group_ids=None,
-                 zone=None, ami_id=None, instance_type=None, key_name=None):
+                 ami_id=None, instance_type=None, key_name=None):
         """
         Initialize and create Launch template
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.create_launch_template
         """
         try:
             super().__init__('launch-template')
-            if group_ids:
-                self.update_group_ids(group_ids)
-            if subnet_id:
-                self.update_subnet_id(subnet_id)
+            # if subnet_id or group_ids:
+            #    self.update_network_interfaces(subnet_id, group_ids)
+            # if group_ids:
+            #    self.update_group_ids(group_ids)
             if ami_id:
                 self.update_ami_id(ami_id)
             if instance_type:
                 self.update_instance_type(instance_type)
             if key_name:
                 self.update_key_name(key_name)
-            if zone:
-                self.update_availability_zone(zone)
+            if key_name:
+                self.update_key_name(key_name)
             self.response = self.client.create_launch_template(LaunchTemplateName=name, VersionDescription=desc,
                                                                LaunchTemplateData=self.data, DryRun=dry)
             self.create_tag(self.response['LaunchTemplate']['LaunchTemplateId'], self.tag, self.desc, dry)
@@ -199,16 +197,13 @@ class Instance(Compute):
     def __init__(self, template_id, max_count=1, min_count=1):
         """
         Initialize and Create Instance from Launch Template
-        https://bot3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.ServiceResource.create_instances
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.ServiceResource.create_instances
         """
         try:
             super().__init__('instance')
-            print('Creating Instance from %s' % template_id )
+            print('Create Instance from %s' % template_id )
             instance = self.compute.create_instances(LaunchTemplate={'LaunchTemplateId': template_id},
                                                      MaxCount=max_count, MinCount=min_count)
-            print(instance)
-            print(instance[0])
-            print(instance[0].id)
             if instance and instance[0]:
                 self.instance_id = instance[0].id
         except ClientError as err:
@@ -394,7 +389,7 @@ class VpcPeeringConnection(Compute):
     VPC PEERING CONNECTION
     """
 
-    def __init__(self, peer_vpc_id, vpc_id, zone, dry=False):
+    def __init__(self, peer_vpc_id, vpc_id, region, dry=False):
         """
         Initialize and create VpcPeeringConnection
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.create_vpc_peering_connection
@@ -402,7 +397,7 @@ class VpcPeeringConnection(Compute):
         try:
             super().__init__('vpc-peering-connection')
             self.response = self.client.create_vpc_peering_connection(PeerVpcId=peer_vpc_id, VpcId=vpc_id,
-                                                                      PeerRegion=zone, DryRun=dry)
+                                                                      PeerRegion=region, DryRun=dry)
             self.create_tag(self.response['VpcPeeringConnection']['VpcPeeringConnectionId'], self.tag, self.desc, dry)
             print('Create vpc_peering_connection  %s' % ('(dry)' if dry else ''))
         except ClientError as err:
@@ -931,7 +926,7 @@ class ElasticIp(Compute):
             super().__init__('elastic-ip')
             self.response = self.client.allocate_address(Domain=domain, DryRun=dry)
             self.create_tag(self.response['AllocationId'], self.tag, self.desc, dry)
-            print('Create elastic ip for %s %s' % (domain, ('(dry)' if dry else '')))
+            print('Create elastic ip %s for %s %s' % (self.response['AllocationId'], domain, ('(dry)' if dry else '')))
         except ClientError as err:
             Compute.handle(err)
         except Exception as err:
@@ -943,7 +938,7 @@ class ElasticIp(Compute):
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.associate_address
         """
         try:
-            print('Associate elastic ip with %s %s' % (instance_id, '(dry)' if dry else ''))
+            print('Associate elastic ip %s with %s %s' % (alloc_id, instance_id, '(dry)' if dry else ''))
             return self.client.associate_address(AllocationId=alloc_id, InstanceId=instance_id, DryRun=dry)
         except ClientError as err:
             Compute.handle(err)
