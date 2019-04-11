@@ -508,8 +508,7 @@ class Subnet(Compute):
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.modify_subnet_attribute
         """
         try:
-            dry = 'Unused'
-            print('Map %s public-ip-on-launch %s %s' % (sn_id, value, ('(dry)' if dry else '')))
+            print('Map %s public-ip-on-launch' % sn_id)
             return self.client.modify_subnet_attribute(SubnetId=sn_id, MapPublicIpOnLaunch={'Value': value})
         except ClientError as err:
             Compute.handle(err)

@@ -7,7 +7,7 @@ AWS Boto3 Client SDK
 
 Usage::
             
-            $ ./ec2_client.py
+            $ ./ec2_client_ood.py
             
             ec2_client.py Usage:
             
@@ -24,7 +24,7 @@ Usage::
             
 Create EC2 Environment::
 
-            $ ./ec2_client.py -a start
+            $ ./ec2_client_ood.py -a start
 
             Create Compute instance in VPC [dry]
             Create vpc (dry)
@@ -39,7 +39,7 @@ Create EC2 Environment::
             Create ipv6 route for ::/0 
             Create tag subnet-tag = boto3-client-sdk for subnet-0fda057182992e42a 
             Create subnet for 172.35.0.0/24 
-            Map subnet-0fda057182992e42a public-ip-on-launch True (dry)
+            Map subnet-0fda057182992e42a public-ip-on-launch True
             Create tag network-acl-tag = boto3-client-sdk for acl-06493b14d8cfdd71a 
             Create network acl for vpc-031460035ad958412 
             Create network acl entry for acl-06493b14d8cfdd71a 
@@ -64,7 +64,7 @@ Create EC2 Environment::
 
 Clean EC2 Environment::
 
-            $ ./ec2_client.py -a clean
+            $ ./ec2_client_ood.py -a clean
 
             Tear down EC2 instance and VPC [dry]
             No VPCs found

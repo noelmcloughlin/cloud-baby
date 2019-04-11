@@ -70,7 +70,7 @@ def launch_compute_vpc_instance(service='ec2', name='boto3-client-sdk', region='
                         eip_alloc_id = compute.response['AllocationId']
 
                         # NAT GATEWAY
-                        # compute = sdk.NatGateway(eip_id, subnet_id, dry)
+                        # compute = sdk.NatGateway(eip_alloc_id, subnet_id, dry)
                         # if compute and compute.response and 'NatGateway' in compute.response:
                         #    nat_gw_id = compute.response['NatGateway']['NatGatewayId']
     
@@ -156,7 +156,6 @@ def teardown_compute_vpc_instances(service='ec2', name='boto3-client-sdk', regio
                     if items and "Reservations" in items and items['Reservations']:
                         for instance in items['Reservations'][0]['Instances']:
                             instance_id = instance['InstanceId']
-                            print('oo')
                             sdk.Instance.delete(cloud.compute.Instance(instance_id), [instance_id], dry)
 
                             # ELASTIC IPS
