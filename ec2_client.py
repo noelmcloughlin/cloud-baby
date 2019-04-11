@@ -289,6 +289,7 @@ def usage():
     print("\n\t[ -n --name\tPrivate Cloud Name (default: 'boto3-client-sdk')")
     print("\n\t[ -z --region\tCloud Region (default 'eu-west-1)")
     print("\n\t[ -c --cidr\tIPv4 Cidr Block (default: '172.35.0.0/24'")
+    print("\n\t[ -d --debug\tTurn on Debug logging (default: off)")
     print("\n")
     sys.exit(2)
 

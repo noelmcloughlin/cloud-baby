@@ -19,6 +19,8 @@ Usage::
             
             	[ -c --cidr	IPv4 Cidr Block (default: '172.35.0.0/24'
                         
+            	[ -d --debug	Turn on Debug logging (default off)'
+                        
             
 Create EC2 Environment::
 
