@@ -16,11 +16,21 @@ class Compute:
         :type tag: String
         """
 
+        self.client = boto3.client('ec2')
+        self.compute = boto3.resource('ec2', region)
         self.tag = service + '-tag'
         self.desc = tag
         self.name = service
         self.zone = zone
         self.region = region
+        self.key_name = 'ec2_user'
+        self.response = None
+        self.instance_id = None
+        self.instance_type = 't2.micro'
+        self.ami_id = 'ami-0fad7378adf284ce0'
+        self.cidr_block = cidr
+        self.max_count = 1
+        self.min_count = 1
         self.user_data = b'''
 #!/bin/bash
 yum update -y
@@ -35,42 +45,35 @@ echo "Create by AWS Boto3 SDK" >> /var/www/html/index.html
 '''
 
         self.data = {'EbsOptimized': False,
-                     'ImageId': 'ami-0fad7378adf284ce0',
-                     'InstanceType': 't2.micro',
-                     'KeyName': 'ec2_user',
+                     'ImageId': self.ami_id,
+                     'InstanceType': self.instance_type,
+                     'KeyName': self.key_name,
                      'Monitoring': {'Enabled': False},
-                     # 'Placement': {'AvailabilityZone': self.zone},
                      'InstanceInitiatedShutdownBehavior': 'terminate',
                      'UserData': base64.b64encode(self.user_data).decode("ascii")
                      }
-        self.client = boto3.client('ec2')
-        self.compute = boto3.resource('ec2', self.region)
-        self.response = None
-        self.instance_id = None
-        self.cidr_block = cidr
-        self.max_count = 1
-        self.min_count = 1
 
     def update_network_interfaces(self, subnet_id=None, group_ids=None):
         self.data['NetworkInterfaces'][0].update({'SubnetId': subnet_id, 'Groups': group_ids})
 
-    def update_group_ids(self, group_ids):
-        self.data.update({'SecurityGroupIds': group_ids})
+    def update_desc(self, desc):
+        self.desc = desc
 
     def update_ami_id(self, ami_id):
+        self.ami_id = ami_id
         self.data.update({'ImageId': ami_id})
 
     def update_instance_type(self, instance_type):
+        self.instance_type = instance_type
         self.data.update({'InstanceType': instance_type})
 
     def update_key_name(self, key_name):
+        self.key_name = key_name
         self.data.update({'KeyName': key_name})
 
     def update_availability_zone(self, zone):
+        self.zone = zone
         self.data.update({'Placement': {'AvailabilityZone': zone}})
-
-    def update_key_name(self, key_name):
-        self.data.update({'KeyName': key_name})
 
     def set_max_count(self, max_count):
         self.max_count = max_count
@@ -131,26 +134,23 @@ class LaunchTemplate(Compute):
     LAUNCH TEMPLATES
     """
 
-    def __init__(self, dry=False, name='launch-template-tag', desc=default_desc, subnet_id=None, group_ids=None,
-                 ami_id=None, instance_type=None, key_name=None):
+    def __init__(self, dry=False, name='launch-template-tag', desc=default_desc, zone='eu-west-1a', ami_id=None,
+                 instance_type=None, key_name=None):
         """
         Initialize and create Launch template
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.create_launch_template
         """
         try:
             super().__init__('launch-template')
-            # if subnet_id or group_ids:
-            #    self.update_network_interfaces(subnet_id, group_ids)
-            # if group_ids:
-            #    self.update_group_ids(group_ids)
+            self.update_desc(desc)
             if ami_id:
                 self.update_ami_id(ami_id)
             if instance_type:
                 self.update_instance_type(instance_type)
             if key_name:
                 self.update_key_name(key_name)
-            if key_name:
-                self.update_key_name(key_name)
+            if zone:
+                self.update_availability_zone(zone)
             self.response = self.client.create_launch_template(LaunchTemplateName=name, VersionDescription=desc,
                                                                LaunchTemplateData=self.data, DryRun=dry)
             self.create_tag(self.response['LaunchTemplate']['LaunchTemplateId'], self.tag, self.desc, dry)
@@ -194,7 +194,7 @@ class Instance(Compute):
     INSTANCES
     """
 
-    def __init__(self, template_id, max_count=1, min_count=1):
+    def __init__(self, template_id, subnet_id, sg_ids, zone, max_count=1, min_count=1):
         """
         Initialize and Create Instance from Launch Template
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.ServiceResource.create_instances
@@ -203,7 +203,9 @@ class Instance(Compute):
             super().__init__('instance')
             print('Create Instance from %s' % template_id )
             instance = self.compute.create_instances(LaunchTemplate={'LaunchTemplateId': template_id},
-                                                     MaxCount=max_count, MinCount=min_count)
+                                                     MaxCount=max_count, MinCount=min_count, SubnetId=subnet_id,
+                                                     SecurityGroupIds=sg_ids,
+                                                     Placement={'AvailabilityZone': zone})
             if instance and instance[0]:
                 self.instance_id = instance[0].id
         except ClientError as err:
@@ -211,15 +213,15 @@ class Instance(Compute):
         except Exception as err:
             Compute.fatal(err)
 
-    def delete(self, instances, dry=False):
+    def delete(self, instance, dry=False):
         """
         Delete a ec2 instance
         """
         try:
-            print('Terminating instance %s' % ('(dry)' if dry else ''))
-            self.compute.terminate(DryRun=dry)
-            self.compute.wait_until_terminated(Filters=[{'Name': 'instance-id', 'Values': instances}], DryRun=dry)
-            print('Terminate instance %s' % ('(dry)' if dry else ''))
+            print('Terminating instance %s %s' % (self.instance_id, ('(dry)' if dry else '')))
+            self.terminate(DryRun=dry)
+            self.wait_until_terminated(Filters=[{'Name': 'instance-id', 'Values': [self.instance_id]}], DryRun=dry)
+            print('Terminated %s' % ('(dry)' if dry else ''))
         except ClientError as err:
             Compute.handle(err)
         except Exception as err:
@@ -952,7 +954,7 @@ class ElasticIp(Compute):
         """
         try:
             print('Disassociate elastic ip %s %s' % (association_id, '(dry)' if dry else ''))
-            return self.client.disassociate_address(AssociationId=association_id, DryRun=dry)
+            self.client.disassociate_address(AssociationId=association_id, DryRun=dry)
         except ClientError as err:
             Compute.handle(err)
         except Exception as err:
@@ -1035,7 +1037,7 @@ class InternetGateway(Compute):
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.attach_internet_gateway
         """
         try:
-            print('Attache %s to %s %s' % (gateway_id, vpc_id, ('(dry)' if dry else '')))
+            print('Attach %s to %s %s' % (gateway_id, vpc_id, ('(dry)' if dry else '')))
             return self.client.attach_internet_gateway(InternetGatewayId=gateway_id, VpcId=vpc_id, DryRun=dry)
         except ClientError as err:
             Compute.handle(err)
@@ -1048,7 +1050,7 @@ class InternetGateway(Compute):
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.detach_internet_gateway
         """
         try:
-            print('Detache %s from %s %s' % (gateway_id, vpc_id, ('(dry)' if dry else '')))
+            print('Detach %s from %s %s' % (gateway_id, vpc_id, ('(dry)' if dry else '')))
             return self.client.detach_internet_gateway(InternetGatewayId=gateway_id, VpcId=vpc_id, DryRun=dry)
         except ClientError as err:
             Compute.handle(err)

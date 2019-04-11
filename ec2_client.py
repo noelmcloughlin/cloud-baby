@@ -38,7 +38,7 @@ def launch_compute_vpc_instance(service='ec2', name='boto3-client-sdk', region='
                         compute = sdk.RouteTable(vpc_id,  dry)
                         if compute and compute.response and 'RouteTable' in compute.response:
                             rtt_id = compute.response['RouteTable']['RouteTableId']
-                            compute.create_route('ipv4', compute.cidr_block, igw_id, rtt_id, dry)
+                            compute.create_route('ipv4', '0.0.0.0/0', igw_id, rtt_id, dry)
                             compute.create_route('ipv6', '::/0', igw_id, rtt_id, dry)
 
                     # SUBNET
@@ -46,7 +46,7 @@ def launch_compute_vpc_instance(service='ec2', name='boto3-client-sdk', region='
                     if compute and compute.response and 'Subnet' in compute.response:
                         subnet_id = compute.response['Subnet']['SubnetId']
                         compute.modify_attr(subnet_id, True)
-    
+
                         # NETWORK ACL
                         compute = sdk.NetworkAcl(vpc_id, dry)
                         if compute and compute.response and 'NetworkAcl' in compute.response:
@@ -81,23 +81,30 @@ def launch_compute_vpc_instance(service='ec2', name='boto3-client-sdk', region='
                         compute.auth_ingress(22,  22, 'TCP', sg_id, [{'CidrIp': '0.0.0.0/0'}], [{'CidrIpv6': '::/0'}])
                         compute.auth_ingress(80,  80, 'TCP', sg_id, [{'CidrIp': '0.0.0.0/0'}], [{'CidrIpv6': '::/0'}])
                         compute.auth_ingress(443, 443, 'TCP', sg_id, [{'CidrIp': '0.0.0.0/0'}], [{'CidrIpv6': '::/0'}])
-                        compute.auth_egress(22,  22, 'TCP', sg_id, [{'CidrIp': cidr_block}], [{'CidrIpv6': '::/0'}])
-                        compute.auth_egress(80,  80, 'TCP', sg_id, [{'CidrIp': cidr_block}], [{'CidrIpv6': '::/0'}])
-                        compute.auth_egress(443, 443, 'TCP', sg_id, [{'CidrIp': cidr_block}], [{'CidrIpv6': '::/0'}])
-    
+                        compute.auth_egress(22,  22, 'TCP', sg_id, [{'CidrIp': '0.0.0.0/0'}], [{'CidrIpv6': '::/0'}])
+                        compute.auth_egress(80,  80, 'TCP', sg_id, [{'CidrIp': '0.0.0.0/0'}], [{'CidrIpv6': '::/0'}])
+                        compute.auth_egress(443, 443, 'TCP', sg_id, [{'CidrIp': '0.0.0.0/0'}], [{'CidrIpv6': '::/0'}])
+
+                        # GET AVAILABILITY ZONE
+                        items = sdk.Subnet.list(cloud, 'subnet-id', [subnet_id], dry)
+                        if items and "Subnets" in items and items['Subnets']:
+                            zone = items['Subnets'][0]['AvailabilityZone']
+                            compute.update_availability_zone(zone)
+
                         # LAUNCH TEMPLATE
-                        compute = sdk.LaunchTemplate(dry, 'launch-template-tag', cloud.desc, subnet_id, [sg_id], )
+                        compute = sdk.LaunchTemplate(dry, 'launch-template-tag', cloud.desc, zone)
                         if compute and compute.response and 'LaunchTemplate' in compute.response:
                             template_id = compute.response['LaunchTemplate']['LaunchTemplateId']
 
                             # INSTANCE
-                            compute = sdk.Instance(template_id, 1, 1)
+                            compute = sdk.Instance(template_id, subnet_id, [sg_id], zone, 1, 1)
                             if compute and compute.instance_id:
                                 instance_id = compute.instance_id
                                 instance = cloud.compute.Instance(instance_id)
                                 instance.wait_until_running(Filters=[{'Name': 'instance-id', 'Values': [instance_id]}],
                                                             DryRun=dry)
-    
+                                compute.create_tag(instance_id, 'instance-tag', cloud.desc, dry)
+
                                 # ELASTIC IP ASSOCIATION
                                 if eip_alloc_id:
                                     sdk.ElasticIp.associate(cloud, eip_alloc_id, instance_id, dry)
@@ -149,27 +156,21 @@ def teardown_compute_vpc_instances(service='ec2', name='boto3-client-sdk', regio
                     if items and "Reservations" in items and items['Reservations']:
                         for instance in items['Reservations'][0]['Instances']:
                             instance_id = instance['InstanceId']
+                            print('oo')
+                            sdk.Instance.delete(cloud.compute.Instance(instance_id), [instance_id], dry)
 
                             # ELASTIC IPS
                             eips = sdk.ElasticIp.list(cloud, 'tag:elastic-ip-tag', [cloud.desc], dry)
                             if eips and "Addresses" in eips and eips['Addresses']:
                                 for ip in eips['Addresses']:
-                                    if ip['AssociationId'] and ip['AssociationId'] != '-':
-                                        sdk.ElasticIp.disassociate(cloud, ip['AssociationId'], dry)
+                                    if 'AssociationId' in ip and ip['AssociationId'] != '-':
+                                        sdk.ElasticIp.disassociate(cloud, ip['AllocationId'], dry)
+                                    time.sleep(2)
                                     sdk.ElasticIp.release(cloud, ip['AllocationId'], dry)
                             else:
                                 print('No elastic ips detected')
-                            instance.delete(cloud.compute.Instance(instance_id), [instance_id], dry)
                     else:
                         print('No ec2 instances detected')
-
-                    # Dangling elastic ips
-                    items = sdk.ElasticIp.list(cloud, 'tag:elastic-ip-tag', [cloud.desc], dry)
-                    if items and "Addresses" in items and items['Addresses']:
-                        for ip in items['Addresses']:
-                            if 'AssociationId' in ip and ip['AssociationId']:
-                                sdk.ElasticIp.disassociate(cloud, ip['AssociationId'], dry)
-                            sdk.ElasticIp.release(cloud, ip['AllocationId'], dry)
 
                     # INSTANCE TEMPLATES
                     items = sdk.LaunchTemplate.list(cloud, 'tag:launch-template-tag', [cloud.desc], dry)
@@ -196,7 +197,7 @@ def teardown_compute_vpc_instances(service='ec2', name='boto3-client-sdk', regio
                     else:
                         print('No network interfaces detected')
 
-                    # SUBNETS
+                    # SUBNET
                     items = sdk.Subnet.list(cloud, 'tag:subnet-tag', [cloud.desc], dry)
                     if items and "Subnets" in items and items['Subnets']:
                         for item in items['Subnets']:
@@ -304,9 +305,10 @@ def main(argv):
     if not opts:
         usage()
 
-    name = 'boto3-client-sdk'
+    zone = 'eu-west-1a'
     region = 'eu-west-1'
-    region_fqdn = 'com.amazonaws.eu-west-1.ec2'
+    name = 'boto3-client-sdk'
+    # region_fqdn = 'com.amazonaws.eu-west-1.ec2'
     cloud_service = 'ec2'
     cidr_block_ipv4 = '172.35.0.0/24'
     action = None
@@ -320,7 +322,7 @@ def main(argv):
             cidr_block_ipv4 = arg()
         elif opt in ("-r", "--region"):
             region = arg.lower()
-            region_fqdn = 'com.amazonaws.' + region + '.' + cloud_service
+            # region_fqdn = 'com.amazonaws.' + region + '.' + cloud_service
         elif opt in ("-d", "--debug"):
             import logging
             log = logging.getLogger('test')
@@ -332,7 +334,7 @@ def main(argv):
     
     # workflow
     if action == "start":
-        launch_compute_vpc_instance(cloud_service, name, region, region_fqdn, cidr_block_ipv4)
+        launch_compute_vpc_instance(cloud_service, name, region, zone, cidr_block_ipv4)
     elif action == "clean":
         teardown_compute_vpc_instances(cloud_service, name, region, cidr_block_ipv4)
     else:
