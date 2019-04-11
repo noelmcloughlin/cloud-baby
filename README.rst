@@ -2,8 +2,10 @@
 cloud-cli
 ================
 
-EC2 Usage
+AWS Boto3 Client SDK
 ======
+
+Usage::
             
             $ ./ec2_client.py
             
