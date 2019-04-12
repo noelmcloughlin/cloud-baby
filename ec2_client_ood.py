@@ -4,8 +4,12 @@ import getopt
 import time
 import sys
 import os
-sys.path.append('./lib')
-import boto3_ec2_client as sdk
+try:
+    sys.path.append('./lib')
+    import boto3_ec2_client as sdk
+except:
+    sys.path.append('../lib')
+    import boto3_ec2_client as sdk
 
 
 def launch_compute_vpc_instance(service='ec2', name='boto3-client-sdk', region='eu-west-1', zone='eu-west-1a',
@@ -152,7 +156,7 @@ def teardown_compute_vpc_instances(service='ec2', name='boto3-client-sdk', regio
                         print('No vpc connection endpoints detected')
 
                     # EC2 INSTANCES
-                    items = sdk.Instance.list(cloud, 'vpc-id', [vpc_id], dry)
+                    items = sdk.Instance.list(cloud, 'vpc-id', [vpc_id], None, None, dry)
                     if items and "Reservations" in items and items['Reservations']:
                         for instance in items['Reservations'][0]['Instances']:
                             instance_id = instance['InstanceId']

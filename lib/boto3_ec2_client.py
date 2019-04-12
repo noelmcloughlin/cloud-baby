@@ -1,5 +1,6 @@
 
 import boto3
+import time
 import base64
 from botocore.exceptions import ClientError
 default_desc = 'boto3-client-sdk'
@@ -105,9 +106,9 @@ echo "Create by AWS Boto3 SDK" >> /var/www/html/index.html
         bad = ('DependencyViolation', 'VpcLimitExceeded', 'UnauthorizedOperation', 'ParamValidationError',
                'AddressLimitExceeded',)
         try:
-            if "NotFound" in error.response['Error']['Code'] or "DryRunOperation" in error.response['Error']['Code']:
+            if "NotFound" in str(error) or "DryRunOperation" in str(error):
                 return
-            elif "InvalidParameterValue" in error.response['Error']['Code']:
+            elif "InvalidParameterValue" in str(error):
                 return
             elif error.response['Error']['Code'] in bad:
                 print('Failed (%s)' % error.response['Error']['Code'])
@@ -213,12 +214,12 @@ class Instance(Compute):
         except Exception as err:
             Compute.fatal(err)
 
-    def delete(self, instance, dry=False):
+    def delete(self, dry=False):
         """
         Delete a ec2 instance
         """
         try:
-            print('Terminating instance %s %s' % (self.instance_id, ('(dry)' if dry else '')))
+            print('Delete instance %s %s' % (self.instance_id, ('(dry)' if dry else '')))
             self.terminate(DryRun=dry)
             self.wait_until_terminated(Filters=[{'Name': 'instance-id', 'Values': [self.instance_id]}], DryRun=dry)
             print('Terminated %s' % ('(dry)' if dry else ''))
@@ -227,13 +228,35 @@ class Instance(Compute):
         except Exception as err:
             Compute.fatal(err)
 
-    def list(self, name='tag:instance-tag', values=(default_desc,), dry=False):
+    def reboot(self, dry=False):
+        """
+        Delete a ec2 instance
+        """
+        try:
+            print('Rebooting instance %s %s' % (self.instance_id, ('(dry)' if dry else '')))
+            self.reboot_instances(InstanceIds=self.instance_id, DryRun=dry)
+            while True:
+                running = self.list('instance-id', [self.instance_id], 'instance-state-code', 16, dry)
+                time.sleep(2)
+                if running:
+                    break
+            print('Rebooted %s' % ('(dry)' if dry else ''))
+        except ClientError as err:
+            Compute.handle(err)
+        except Exception as err:
+            Compute.fatal(err)
+
+    def list(self, name='tag:instance-tag', values=(default_desc,), name2=None, values2=(), dry=False):
         """
         Get EC2 instances by searching for stuff
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.describe_instances
         """
         try:
-            return self.client.describe_instances(Filters=[{'Name': name, 'Values': values}], DryRun=dry)
+            if name2 and values2:
+                return self.client.describe_instances(Filters=[{'Name': name, 'Values': values},
+                                                               {'Name': name2, 'Values': values2}], DryRun=dry)
+            else:
+                return self.client.describe_instances(Filters=[{'Name': name, 'Values': values}], DryRun=dry)
         except ClientError as err:
             Compute.handle(err)
         except Exception as err:
