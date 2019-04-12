@@ -19,7 +19,7 @@ def usage():
     print("\n")
     print("Example workflow:")
     print("\n %s -i start" % os.path.basename(__file__))
-    print("\n %s -o start -n s3-my-unique-bucket-nAmE -f files/myimage.jpg" % os.path.basename(__file__))
+    print("\n %s -o start -n s3-my-unique-bucket-nAmE -f ../files/myimage.jpg" % os.path.basename(__file__))
     print("\n %s -f file/myfile.jpg -s files/check.py -k ~/.aws/ec2_user.pem -h 39.49.59.69" % os.path.basename(__file__))
     print("\n %s -i clean" % os.path.basename(__file__))
     print("\n %s -o clean" % os.path.basename(__file__))
@@ -65,9 +65,9 @@ def main(argv):
 
         elif opt in ("-i", "--instance",):
             if 'start' in arg.lower():
-                return subprocess.run("./ec2.py -a start", shell=True)   ### START INSTANCE
+                return subprocess.run("./ec2_client_script.py -a start", shell=True)   ### START INSTANCE
             elif arg.lower() in ('clean', 'stop',):
-                return subprocess.run("./ec2.py -a clean", shell=True)   ### STOP INSTANCE
+                return subprocess.run("./ec2_client_script.py -a clean", shell=True)   ### STOP INSTANCE
             else:
                 usage()
 
@@ -97,9 +97,9 @@ def main(argv):
 
     if 'ec2' in target:
         if 'start' in action:
-            return subprocess.run("./ec2.py -a start", shell=True)   ### START INSTANCE
+            return subprocess.run("../ec2.py -a start", shell=True)   ### START INSTANCE
         elif 'clean' in action:
-            return subprocess.run("./ec2.py -a clean", shell=True)   ### STOP INSTANCE
+            return subprocess.run("../ec2.py -a clean", shell=True)   ### STOP INSTANCE
 
     ## RUN OUR USE CASE ##
     run(host, script, filename, keypair, name)
