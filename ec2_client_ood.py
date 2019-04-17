@@ -272,7 +272,7 @@ def teardown_compute_vpc_instances(cloud):
                         print('No security groups detected')
                     sdk.Vpc.delete(cloud, cloud.vpc_id)
             else:
-                print('No VPCs found %s' % "[dry] if cloud.dry else ''")
+                print('No VPCs found %s' % ('[dry]' if cloud.dry else ''))
     except Exception as err:
         sdk.Compute.handle(err)
 
@@ -281,14 +281,14 @@ def usage():
     print("\n%s Usage:" % os.path.basename(__file__))
     print("\n\t  -a --action\t\tstart | clean | cleanstart")
     print("\n\t[ -n --name\t\t<value>\t\tTag Key (default: 'ec2')")
-    print("\n\t[ -i --image\t\t<value>\t\tImage ID (default: 'ami-0fad7378adf284ce0')")
-    print("\n\t[ -y --instance-type\t<value>\t\tInstance Type (default: 't2.micro')")
-    print("\n\t[ -h --hibernate\tTrue|False\tEnable instance hibernation (default: True)")
-    print("\n\t[ -t --tag\t\t<value>\t\tTag (default: 'boto3-client-sdk')")
-    print("\n\t[ -z --region\t\t<value>\t\tCloud Region (default 'eu-west-1)")
-    print("\n\t[ -c --cidr\t\t<value>\t\tIPv4 Cidr Block (default: '172.35.0.0/24'")
-    print("\n\t[ -k --keypair\t\t<value>\t\tKey Pair name (default: 'ec2_user'")
-    print("\n\t[ -d --debug\t\t\t\tDebug logging (default: off)")
+    print("\t[ -i --image\t\t<value>\t\tImage ID (default: 'ami-0fad7378adf284ce0')")
+    print("\t[ -y --instance-type\t<value>\t\tInstance Type (default: 't2.micro')")
+    print("\t[ -h --hibernate\tTrue|False\tEnable instance hibernation (default: True)")
+    print("\t[ -t --tag\t\t<value>\t\tTag (default: 'boto3-client-sdk')")
+    print("\t[ -z --region\t\t<value>\t\tCloud Region (default 'eu-west-1)")
+    print("\t[ -c --cidr\t\t<value>\t\tIPv4 Cidr Block (default: '172.35.0.0/24'")
+    print("\t[ -k --keypair\t\t<value>\t\tKey Pair name (default: 'ec2_user'")
+    print("\t[ -d --debug\t\t\t\tDebug logging (default: off)")
     print("\n")
     sys.exit(2)
 

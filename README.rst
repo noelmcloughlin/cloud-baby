@@ -7,89 +7,95 @@ AWS Boto3 Client SDK
 
 Usage::
             
-            $ ./ec2_client_ood.py
-            
-            ec2_client.py Usage:
-            
-            	-a --action	start | clean 
-            
-            	[ -n --name	Private Cloud Name (default: 'boto3-client-sdk')
-            
-            	[ -z --region	Cloud Region (default 'eu-west-1)
-            
-            	[ -c --cidr	IPv4 Cidr Block (default: '172.35.0.0/24'
-                        
-            	[ -d --debug	Turn on Debug logging (default off)'
-                        
-            
-Create EC2 Environment::
+          $ ./ec2_client_ood.py
+             
+            ec2_client_ood.py Usage:
+             
+                -a --action		start | clean | cleanstart
+             
+             	[ -n --name		<value>		Tag Key (default: 'ec2')
+             	[ -i --image		<value>		Image ID (default: 'ami-0fad7378adf284ce0')
+             	[ -y --instance-type	<value>		Instance Type (default: 't2.micro')
+             	[ -h --hibernate	True|False	Enable instance hibernation (default: True)
+             	[ -t --tag		<value>		Tag (default: 'boto3-client-sdk')
+             	[ -z --region		<value>		Cloud Region (default 'eu-west-1)
+             	[ -c --cidr		<value>		IPv4 Cidr Block (default: '172.35.0.0/24'
+             	[ -k --keypair		<value>		Key Pair name (default: 'ec2_user'
+             	[ -d --debug				Debug logging (default: off)
 
-            $ ./ec2_client_ood.py -a start
+                        
+            
+Create tagged EC2 Environment::
 
-            Create Compute instance in VPC [dry]
-            Create vpc (dry)
-            Create vpc 
-            Create tag vpc-tag = boto3-client-sdk for vpc-031460035ad958412 
-            Create tag internet-gateway-tag = boto3-client-sdk for igw-0d10e2128fa05e7eb 
+         $ ./ec2_client_ood.py -a start
+
+            Create vpc boto3-client-sdk (dry)
+            Create vpc boto3-client-sdk 
+            Create tag boto3-client-sdk = boto3-client-sdk for vpc-0f6e544b96b996a68 
             Create internet gateway 
-            Attache igw-0d10e2128fa05e7eb to vpc-031460035ad958412 
-            Create tag route-table-tag = boto3-client-sdk for rtb-0dd26a22dc02d7806 
-            Create route table for vpc-031460035ad958412 
-            Create ipv4 route for 172.35.0.0/24 
+            Create tag boto3-client-sdk = boto3-client-sdk for igw-0dd5b7cfb4700420d 
+            Attach igw-0dd5b7cfb4700420d to vpc-0f6e544b96b996a68 
+            Create route table for vpc-0f6e544b96b996a68 
+            Create tag boto3-client-sdk = boto3-client-sdk for rtb-033d4f78cef695395 
+            Create ipv4 route for 0.0.0.0/0 
             Create ipv6 route for ::/0 
-            Create tag subnet-tag = boto3-client-sdk for subnet-0fda057182992e42a 
             Create subnet for 172.35.0.0/24 
-            Map subnet-0fda057182992e42a public-ip-on-launch True
-            Create tag network-acl-tag = boto3-client-sdk for acl-06493b14d8cfdd71a 
-            Create network acl for vpc-031460035ad958412 
-            Create network acl entry for acl-06493b14d8cfdd71a 
-            Create network acl entry for acl-06493b14d8cfdd71a 
-            Associate route table rtb-0dd26a22dc02d7806 to subnet-0fda057182992e42a 
-            Create tag elastic-ip-tag = boto3-client-sdk for eipalloc-07028af9bd61213e6 
-            Create elastic ip eipalloc-07028af9bd61213e6 for vpc 
-            Create tag security-group-tag = boto3-client-sdk for sg-0ac9db80ee389ba13 
+            Create tag boto3-client-sdk = boto3-client-sdk for subnet-0eac2ef3185c81772 
+            Map subnet-0eac2ef3185c81772 public-ip-on-launch
+            Create network acl for vpc-0f6e544b96b996a68 
+            Create tag boto3-client-sdk = boto3-client-sdk for acl-01c1387ea365e37a0 
+            Create network acl entry for acl-01c1387ea365e37a0 
+            Create network acl entry for acl-01c1387ea365e37a0 
+            Associate route table rtb-033d4f78cef695395 to subnet-0eac2ef3185c81772 
+            Create tag boto3-client-sdk = boto3-client-sdk for eipalloc-0ded64345ef5fafc4 
+            Created elastic ip eipalloc-0ded64345ef5fafc4 for vpc 
             Create security group 
-            Authorize sg ingress sg-0ac9db80ee389ba13 
-            Authorize sg ingress sg-0ac9db80ee389ba13 
-            Authorize sg ingress sg-0ac9db80ee389ba13 
-            Authorize sg egress sg-0ac9db80ee389ba13 
-            Authorize sg egress sg-0ac9db80ee389ba13 
-            Authorize sg egress sg-0ac9db80ee389ba13 
-            Create tag launch-template-tag = boto3-client-sdk for lt-055e69c0ae3257568 
+            Create tag boto3-client-sdk = boto3-client-sdk for sg-0fb46caaa85671ddf 
+            Authorize sg ingress sg-0fb46caaa85671ddf 
+            Authorize sg egress sg-0fb46caaa85671ddf 
+            Authorize sg ingress sg-0fb46caaa85671ddf 
+            Authorize sg egress sg-0fb46caaa85671ddf 
+            Authorize sg ingress sg-0fb46caaa85671ddf 
+            Authorize sg egress sg-0fb46caaa85671ddf 
             Create launch_template 
-            Create Instance from lt-055e69c0ae3257568
-            Associate elastic ip eipalloc-07028af9bd61213e6 with i-0d3fdfac46a2f8f6c 
-            created Instance i-0d3fdfac46a2f8f6c i-0d3fdfac46a2f8f6c
-            
+            Create tag boto3-client-sdk = boto3-client-sdk for lt-0c7c29ce912135210 
+            Create Instance from lt-0c7c29ce912135210
+            Create tag boto3-client-sdk = boto3-client-sdk for i-020e8cdb04dec8310 
+            Wait until running ...
+            Associate elastic ip eipalloc-0ded64345ef5fafc4 with i-020e8cdb04dec8310 
+            created Instance i-020e8cdb04dec8310
+ 
 
-Clean EC2 Environment::
+Clean tagged EC2 Environment::
 
-            $ ./ec2_client_ood.py -a clean
+          $ ./ec2_client_ood.py -a clean
 
-            Tear down EC2 instance and VPC [dry]
-            No VPCs found
-            
-            Tear down EC2 instance and VPC, please be patient
-            Found: vpc-031460035ad958412
+            No VPCs found [dry]
+            Found: vpc-035d6904e8df402c4
             No vpc endpoints detected
             No vpc connection endpoints detected
-            No ec2 instances detected
-            Disassociate elastic ip eipassoc-005af48d2992d5cc3 
-            Release eipalloc-07028af9bd61213e6 
-            Delete launch_template lt-055e69c0ae3257568 launch-template-tag
-            Detache igw-0d10e2128fa05e7eb from vpc-031460035ad958412 
-            Delete internet gateway igw-0d10e2128fa05e7eb 
+            Delete instance i-075f3cb7605970ff2 
+            Terminated 
+            Release eipalloc-030e1b3d93567111f 
+            Delete launch_template lt-0fdcfd6cb3236e024 boto3-client-sdk
+            Detach igw-0b951feb1b64742ee from vpc-035d6904e8df402c4 
+            Delete internet gateway igw-0b951feb1b64742ee 
             No network interfaces detected
-            Delete subnet-0fda057182992e42a 
-            Delete rtb-0dd26a22dc02d7806 
+            Delete subnet-00c9e07f3b7c4aa0e 
             Skipping main route table
+            Delete rtb-0f370f547b20482ad 
             No nat gateways detected
-            Delete acl-06493b14d8cfdd71a 
-            Delete acl-06493b14d8cfdd71a 
-            Delete acl-06493b14d8cfdd71a 
-            Delete acl-06493b14d8cfdd71a 
-            Delete acl-06493b14d8cfdd71a 
+            Delete acl-0ce9027d9477930c6 
+            Delete acl-0ce9027d9477930c6 
+            Delete acl-0ce9027d9477930c6 
+            Delete acl-0ce9027d9477930c6 
+            Delete acl-0ce9027d9477930c6 
             No referencing security groups detected
-            Deleting security group sg-0ac9db80ee389ba13
-            Delete sg-0ac9db80ee389ba13 
-            Delete vpc-031460035ad958412 
+            Deleting security group sg-055702e9d44cd5ba7
+            Delete sg-055702e9d44cd5ba7 
+            Delete vpc-035d6904e8df402c4 
+            
+          $./ec2_client_ood.py -a clean
+
+            No VPCs found [dry]
+            No VPCs found
