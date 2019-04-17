@@ -7,9 +7,9 @@ AWS Boto3 Client SDK
 
 Usage::
             
-          $ ./ec2_client_ood.py
+          $ ./aws_compute_client_ood.py
              
-            ec2_client_ood.py Usage:
+            aws_compute_client_ood.py Usage:
              
             -a --action            start | clean | cleanstart
              
@@ -27,7 +27,7 @@ Usage::
             
 Create tagged EC2 Environment::
 
-         $ ./ec2_client_ood.py -a start
+         $ ./aws_compute_client_ood.py -a start
 
             Create vpc boto3-client-sdk (dry)
             Create vpc boto3-client-sdk 
@@ -68,7 +68,7 @@ Create tagged EC2 Environment::
 
 Clean tagged EC2 Environment::
 
-          $ ./ec2_client_ood.py -a clean
+          $ ./aws_compute_client_ood.py -a clean
 
             No VPCs found [dry]
             Found: vpc-035d6904e8df402c4
@@ -95,7 +95,7 @@ Clean tagged EC2 Environment::
             Delete sg-055702e9d44cd5ba7 
             Delete vpc-035d6904e8df402c4 
             
-          $./ec2_client_ood.py -a clean
+          $./aws_compute_client_ood.py -a clean
 
             No VPCs found [dry]
             No VPCs found
