@@ -6,10 +6,10 @@ import sys
 import os
 try:
     sys.path.append('./lib')
-    import boto3_ec2_client as sdk
+    import boto3_client as sdk
 except ImportError:
     sys.path.append('../lib')
-    import boto3_ec2_client as sdk
+    import boto3_client as sdk
 
 all_ip4 = '0.0.0.0/0'
 all_ip6 = '::/0'
