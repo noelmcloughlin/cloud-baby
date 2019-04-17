@@ -15,8 +15,8 @@ class Compute:
     COMPUTE
     """
     def __init__(self, name='name', tag='tag', region='eu-west-1', zone='eu-west-1a', key_pair='ec2_user',
-                 cidr_block=None, ami_id='ami-0fad7378adf284ce0', instance_type='t2.micro', hibernate=True,
-                 user_data=None, dry=False):
+                 cidr4=None, sg=None, sn=None, ami_id='ami-0fad7378adf284ce0', ami_type='t2.micro',
+                 hibernate=True, user_data=None, dry=False):
         """
         Initialise data for Cloud Compute
         """
@@ -30,9 +30,11 @@ class Compute:
         self.region = region
         self.zone = zone
         self.key_pair = key_pair
-        self.cidr_block = cidr_block
+        self.cidr4 = cidr4
+        self.sg_id = sg
+        self.subnet_id = sn
         self.ami_id = ami_id
-        self.instance_type = instance_type
+        self.ami_type = ami_type
         self.hibernate = hibernate
         self.user_data = user_data or b'''
 #!/bin/bash
@@ -113,9 +115,8 @@ class LaunchTemplate(Compute):
         cloud.template_data = {
             'EbsOptimized': False,
             'BlockDeviceMappings': [],
-            'NetworkInterfaces': [],
             'ImageId': cloud.ami_id,
-            'InstanceType': cloud.instance_type,
+            'InstanceType': cloud.ami_type,
             'KeyName': cloud.key_pair,
             'Monitoring': {'Enabled': False},
             'Placement': {'AvailabilityZone': cloud.zone},
@@ -123,7 +124,7 @@ class LaunchTemplate(Compute):
             'UserData': base64.b64encode(cloud.user_data).decode("ascii"),
             'TagSpecifications': cloud.tag_specifications,
             'SecurityGroupIds': (cloud.sg_id,),
-            # 'HibernationOptions': {'Configured': cloud.hibernate}
+            # 'HibernationOptions': {'Configured': cloud.hibernate}  ## not supported by t2.micro
             }
 
         try:
@@ -186,10 +187,10 @@ class Instance(Compute):
         try:
             print('Create Instance from %s' % cloud.template_id)
             self.response = cloud.compute.create_instances(LaunchTemplate={'LaunchTemplateId': cloud.template_id},
-                                                           SubnetId=cloud.subnet_id, SecurityGroupIds=(cloud.sg_id,),
-                                                           MaxCount=cloud.max_count, MinCount=cloud.min_count,
-                                                           Placement={'AvailabilityZone': cloud.zone},
-                                                           ClientToken=cloud.token)
+                                                            SubnetId=cloud.subnet_id, SecurityGroupIds=(cloud.sg_id,),
+                                                            MaxCount=cloud.max_count, MinCount=cloud.min_count,
+                                                            Placement={'AvailabilityZone': cloud.zone},
+                                                            ClientToken=cloud.token)
             self.create_tag(cloud, self.response[0].id)
         except ClientError as err:
             Compute.handle(err)
@@ -315,7 +316,7 @@ class Vpc(Compute):
         super().__init__(cloud.name)
         try:
             print('Create vpc %s %s' % (cloud.name, ('(dry)' if cloud.dry else '')))
-            self.response = self.client.create_vpc(CidrBlock=cloud.cidr_block, DryRun=cloud.dry,
+            self.response = self.client.create_vpc(CidrBlock=cloud.cidr4, DryRun=cloud.dry,
                                                    InstanceTenancy=tenancy, AmazonProvidedIpv6CidrBlock=auto_ipv6)
             self.create_tag(cloud, self.response['Vpc']['VpcId'])
         except ClientError as err:
@@ -522,8 +523,8 @@ class Subnet(Compute):
         """
         super().__init__(cloud.name)
         try:
-            print('Create subnet for %s %s' % (cloud.cidr_block, ('(dry)' if cloud.dry else '')))
-            self.response = self.client.create_subnet(CidrBlock=cloud.cidr_block, VpcId=cloud.vpc_id, DryRun=cloud.dry)
+            print('Create subnet for %s %s' % (cloud.cidr4, ('(dry)' if cloud.dry else '')))
+            self.response = self.client.create_subnet(CidrBlock=cloud.cidr4, VpcId=cloud.vpc_id, DryRun=cloud.dry)
             self.create_tag(cloud, self.response['Subnet']['SubnetId'])
         except ClientError as err:
             Compute.handle(err)
@@ -546,14 +547,14 @@ class Subnet(Compute):
         return None
 
     @staticmethod
-    def delete(self, subnet_id):
+    def delete(self):
         """
         Delete a subnet.
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.delete_subnet
         """
         try:
-            print('Delete %s %s' % (subnet_id, ('(dry)' if self.dry else '')))
-            return self.client.delete_subnet(SubnetId=subnet_id, DryRun=self.dry)
+            print('Delete %s %s' % (self.subnet_id, ('(dry)' if self.dry else '')))
+            return self.client.delete_subnet(SubnetId=self.subnet_id, DryRun=self.dry)
         except ClientError as err:
             Compute.handle(err)
         except Exception as err:
@@ -591,7 +592,7 @@ class SecurityGroup(Compute):
         super().__init__(cloud.name)
         try:
             if not description:
-                description=self.tag
+                description = self.tag
             print('Create security group %s' % ('(dry)' if cloud.dry else ''))
             self.response = self.client.create_security_group(Description=description, GroupName=cloud.name,
                                                               VpcId=cloud.vpc_id, DryRun=cloud.dry)
@@ -939,12 +940,12 @@ class NetworkAcl(Compute):
         try:
             print('Create network acl entry for %s %s' % (self.acl_id, '(dry)' if self.dry else ''))
             if from_port and to_port:
-                return self.client.create_network_acl_entry(CidrBlock=self.cidr_block, Egress=egress, Protocol=proto,
+                return self.client.create_network_acl_entry(CidrBlock=self.cidr4, Egress=egress, Protocol=proto,
                                                             RuleAction=action, NetworkAclId=self.acl_id,
                                                             PortRange={'From': from_port, 'To': to_port},
                                                             RuleNumber=rule_num, DryRun=self.dry)
             else:
-                return self.client.create_network_acl_entry(CidrBlock=self.cidr_block, Egress=egress, Protocol=proto,
+                return self.client.create_network_acl_entry(CidrBlock=self.cidr4, Egress=egress, Protocol=proto,
                                                             RuleAction=action, NetworkAclId=self.acl_id,
                                                             PortRange={'From': from_port, 'To': to_port},
                                                             RuleNumber=rule_num, DryRun=self.dry)
@@ -1154,74 +1155,67 @@ class AutoScaling(Compute):
     """
     AUTO-SCALING
     """
-
-    def __init__(self, cloud):
+    def __init__(self, name, tag='boto3-client-sdk', region='eu-west-1', zone='eu-west-1a', key_pair='ec2_user',
+                 cidr4=None, sg=None, sn=None, ami_id='ami-0fad7378adf284ce0', ami_type='t2.micro',
+                 hibernate=True, user_data=None, dry=False):
         """
         Initialise data for AutoScaling
         """
-        super().__init__(cloud.name)
-        self.client = boto3.client('autoscaling')
+        super().__init__(name, tag, region, zone, key_pair, cidr4, sg, sn, ami_id, ami_type, hibernate,
+                         user_data, dry)
+        self.autoscale = boto3.client('autoscaling')
 
 
 class LaunchConfiguration(AutoScaling):
     """
     LAUNCH CONFIGURATION
     """
-    def __init__(self, cloud, associate_public_ip_address=False):
+    def __init__(self, cloud, public_ip=True, iam_profile='', monitor=False, ebs_optimized=False, tenancy='default'):
         """
         Initialize and create Launch configuration
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/autoscaling.html#AutoScaling.Client.create_launch_configuration
         """
         super().__init__(cloud.name)
-        cloud.template_data = {
-            'LaunchConfigurationName': cloud.name,
-            'ImageId': cloud.ami_id,
-            'KeyName': cloud.key_pair,
-            'SecurityGroupIds': [cloud.sg_id],
-            'UserData': cloud.user_data,
-            'InstanceType': cloud.instance_type,
-            'BlockDeviceMappings': {},
-            'InstanceMonitoring': {'Enabled': False},
-            'EbsOptimized': False,
-            'AssociatePublicIpAddress': associate_public_ip_address,
-            'PlacementTenancy': 'default'
-            }
-
         try:
             if not cloud.dry:
-                print('Create launch_configuration %s' % ('(dry)' if cloud.dry else ''))
-                self.response = self.client.create_launch_configuration(cloud.template_data)
-                self.create_tag(cloud, self.response['LaunchConfiguration']['LaunchConfigurationId'])
+                print('Create launch_configuration %s' % cloud.name)
+                self.autoscale.create_launch_configuration(LaunchConfigurationName=cloud.name, ImageId=cloud.ami_id,
+                                                           EbsOptimized=ebs_optimized, UserData=cloud.user_data,
+                                                           InstanceType=cloud.ami_type, KeyName=cloud.key_pair,
+                                                           InstanceMonitoring={'Enabled': monitor},
+                                                           AssociatePublicIpAddress=public_ip,
+                                                           SecurityGroups=(cloud.sg_id,),
+                                                           PlacementTenancy=tenancy)
         except ClientError as err:
             AutoScaling.handle(err)
         except Exception as err:
             AutoScaling.fatal(err)
 
     @staticmethod
-    def delete(self, name):
+    def delete(self, launch_conf_name):
         """
         Delete launch_configuration
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/autoscaling.html#AutoScaling.Client.delete_launch_configuration
         """
         try:
-            print('Delete launch_configuration %s' % name)
-            self.client.delete_launch_configuration(LaunchConfigurationName=name)
+            print('Delete launch_configuration %s' % launch_conf_name)
+            self.autoscale.delete_launch_configuration(LaunchConfigurationName=launch_conf_name)
         except ClientError as err:
             AutoScaling.handle(err)
         except Exception as err:
             AutoScaling.fatal(err)
 
     @staticmethod
-    def list(self, launchconfig_names=None):
+    def list(self, launch_conf_names=None):
         """
         Get AutoScaling launch configurations by name (or filter if supported)
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/autoscaling.html#AutoScaling.Client.describe_launch_configurations
         """
         try:
-            if launchconfig_names:
-                return self.client.describe_launch_configurations(LaunchConfigurationNames=launchconfig_names)
+            if launch_conf_names:
+                return self.autoscale.describe_launch_configurations(LaunchConfigurationNames=launch_conf_names)
             else:
-                return self.client.describe_launch_configurations()
+                return self.autoscale.describe_launch_configurations()
         except ClientError as err:
             AutoScaling.handle(err)
         except Exception as err:
@@ -1233,7 +1227,7 @@ class AutoScalingGroup(AutoScaling):
     AUTO SCALING GROUP
     """
 
-    def __init__(self, cloud, min_size=1, max_size=2, capacity=2, health_check_type='ec2', lb_names=None):
+    def __init__(self, cloud, min_size=1, max_size=1, desired_capacity=1, health_check_type='EC2', lb_names=None):
         """
         Initialize and Create AutoScaling from Launch Configuration
         https://docs.aws.amazon.com/autoscaling/ec2/userguide/create-launch-template.html
@@ -1241,29 +1235,27 @@ class AutoScalingGroup(AutoScaling):
         """
         super().__init__(cloud.name)
         try:
-            if cloud.launch_template_id:
+            if cloud.name:   # always true I guess
+                print('Create AutoScaling group: %s' % cloud.name)
+                self.response = self.autoscale.create_auto_scaling_group(AutoScalingGroupName=cloud.name,
+                                                                         LaunchConfigurationName=cloud.name,
+                                                                         Tags=[{'Key': cloud.tag, 'Value': cloud.tag}],
+                                                                         VPCZoneIdentifier=cloud.subnet_id,
+                                                                         MinSize=min_size, MaxSize=max_size,
+                                                                         HealthCheckType=health_check_type,
+                                                                         DesiredCapacity=desired_capacity,
+                                                                         AvailabilityZones=(cloud.zone,))
+            elif cloud.launch_template_id:
                 print('Create AutoScaling group: %s' % cloud.launch_template_id)
-                self.response = cloud.compute.create_auto_scaling_group(LaunchTemplate={'LaunchTemplateId':
-                                                                                        cloud.launch_template_id},
-                                                                        HealthCheckType=health_check_type,
-                                                                        DesiredCapacity=capacity, MinSize=min_size,
-                                                                        MaxSize=max_size, TargetGroupARNs=lb_names,
-                                                                        Tags=[{'Key': cloud.name, 'Value': cloud.tag}],
-                                                                        VPCZoneIdentifier=(cloud.subnet_ids,),
-                                                                        AvailabilityZones=(cloud.zone,))
-            elif cloud.launchconfig_name:
-                print('Create AutoScaling group: %s' % cloud.launchconfig_name)
-                self.response = cloud.compute.create_auto_scaling_group(LaunchConfigurationName=cloud.launchconfig_name,
-                                                                        HealthCheckType=health_check_type,
-                                                                        DesiredCapacity=capacity,
-                                                                        MinSize=min_size, MaxSize=max_size,
-                                                                        TargetGroupARNs=lb_names,
-                                                                        Tags=[{'Key': cloud.tag, 'Value': cloud.tag}],
-                                                                        AvailabilityZones=(cloud.zone,),
-                                                                        VPCZoneIdentifier=(cloud.subnet_id,))
-                self.response = self.list(cloud.launchconfig_name)
-                cloud.auto_scaling_group_arn = self.response['AutoScalingGroups']['AutoScalingGroupARN']
-                self.create_tag(cloud, cloud.auto_scaling_group_arn)
+                self.response = self.autoscale.create_auto_scaling_group(AutoScalingGroupName=cloud.name,
+                                                                         Tags=[{'Key': cloud.name, 'Value': cloud.tag}],
+                                                                         LaunchTemplate={'LaunchTemplateId':
+                                                                                         cloud.launch_template_id},
+                                                                         VPCZoneIdentifier=cloud.subnet_id,
+                                                                         MinSize=min_size, MaxSize=max_size,
+                                                                         HealthCheckType=health_check_type,
+                                                                         DesiredCapacity=desired_capacity,
+                                                                         AvailabilityZones=(cloud.zone,))
             else:
                 raise ClientError("Unable to invoke 'create_auto_scaling_group' due to bad arguments", 'Create')
         except ClientError as err:
@@ -1272,30 +1264,30 @@ class AutoScalingGroup(AutoScaling):
             AutoScaling.fatal(err)
 
     @staticmethod
-    def delete(self, name, force=False):
+    def delete(self, force=False):
         """
         Delete AutoScaling group
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/autoscaling.html#AutoScaling.Client.delete_auto_scaling_group
         """
         try:
-            print('Delete AutoScaling group %s' % name)
-            self.compute.delete_auto_scaling_group(AutoScalingGroupName=name, ForceDelete=force)
+            print('Delete AutoScaling group %s' % self.asg_name)
+            self.autoscale.delete_auto_scaling_group(AutoScalingGroupName=self.asg_name, ForceDelete=force)
         except ClientError as err:
             AutoScaling.handle(err)
         except Exception as err:
             AutoScaling.fatal(err)
 
     @staticmethod
-    def list(self, auto_scaling_group_names=None):
+    def list(self):
         """
         Get AutoScaling groups by filtering
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/autoscaling.html#AutoScaling.Client.describe_auto_scaling_groups
         """
         try:
-            if auto_scaling_group_names:
-                return self.client.describe_auto_scaling_groups(AutoScalingGroupiNames=auto_scaling_group_names)
+            if self.name:
+                return self.autoscale.describe_auto_scaling_groups(AutoScalingGroupNames=(self.name,))
             else:
-                return self.client.describe_auto_scaling_groups()
+                return self.autoscale.describe_auto_scaling_groups()
         except ClientError as err:
             AutoScaling.handle(err)
         except Exception as err:
@@ -1309,9 +1301,183 @@ class AutoScalingGroup(AutoScaling):
         """
         try:
             if auto_scaling_instance_ids:
-                return self.client.describe_auto_scaling_groups(InstanceIds=auto_scaling_instance_ids)
+                return self.autoscale.describe_auto_scaling_instances(InstanceIds=auto_scaling_instance_ids)
             else:
-                return self.client.describe_auto_scaling_groups()
+                return self.autoscale.describe_auto_scaling_instances()
+        except ClientError as err:
+            AutoScaling.handle(err)
+        except Exception as err:
+            AutoScaling.fatal(err)
+
+    @staticmethod
+    def attach_instances(self, asg_name, instance_ids):
+        """
+        Attaches one or more EC2 instances to the specified Auto Scaling group.
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/autoscaling.html#AutoScaling.Client.attach_instances
+        """
+        try:
+            print('Attach instances to AutoScaling group %s' % asg_name)
+            self.autoscale.delete_auto_scaling_group(InstanceIds=instance_ids, AutoScalingGroupName=asg_name)
+        except ClientError as err:
+            AutoScaling.handle(err)
+        except Exception as err:
+            AutoScaling.fatal(err)
+
+
+class AutoScalingGroupTags(AutoScaling):
+    """
+    AUTO SCALING GROUP TAGS
+    """
+
+    def __init__(self, cloud, resource=None):
+        """
+        Creates or updates tags for the specified Auto Scaling group
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/autoscaling.html#AutoScaling.Client.create_or_update_tags
+        """
+        super().__init__(cloud.name)
+        try:
+            print('Create tag %s = %s for %s %s' % (cloud.name, cloud.tag, resource, ('(dry)' if cloud.dry else '')))
+            self.autoscale.create_or_update_tags(Tags=[{'ResourceId': cloud.name, 'ResourceType': 'auto-scaling-group',
+                                                        'Key': cloud.name, 'Value': cloud.tag,
+                                                        'PropagateAtLaunch': True}])
+        except ClientError as err:
+            Compute.handle(err)
+        except Exception as err:
+            Compute.fatal(err)
+
+    @staticmethod
+    def delete(self):
+        """
+        Delete AutoScaling group tags
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/autoscaling.html#AutoScaling.Client.delete_tags
+        """
+        try:
+            print('Delete AutoScaling group tags %s' % self.name)
+            self.autoscale.delete_tags(Tags=[{'ResourceId': self.name, 'ResourceType': 'auto-scaling-group',
+                                              'Key': self.name, 'Value': self.tag, 'PropagateAtLaunch': True}])
+        except ClientError as err:
+            AutoScaling.handle(err)
+        except Exception as err:
+            AutoScaling.fatal(err)
+
+    @staticmethod
+    def list(self):
+        """
+        Get AutoScaling group tags
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/autoscaling.html#AutoScaling.Client.describe_tags
+        """
+        try:
+            return self.autoscale.describe_tags(Filters=[{'Name': 'key', 'Values': (self.tag,)}])
+        except ClientError as err:
+            AutoScaling.handle(err)
+        except Exception as err:
+            AutoScaling.fatal(err)
+
+
+class AutoScalingPolicy(AutoScaling):
+    """
+    AUTO SCALING POLICY
+    """
+
+    def __init__(self, cloud, name='boto3-client-sdk', policy_type='TargetTrackingScaling', minimum=1, warmup=90,
+                 label='CPU 50', metric='ASGAverageCPUUtilization', metric_value=50):
+        """
+        Creates or updates a policy for an Auto Scaling group
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/autoscaling.html#AutoScaling.Client.put_scaling_policy
+        """
+        super().__init__(cloud.name)
+        target_tracking_config = {'PredefinedMetricSpecification': {'PredefinedMetricType': metric,
+                                                                    'ResourceLabel': label}}
+        try:
+            print('Create AutoScaling policy %s' % name)
+            self.autoscale.put_scaling_policy(AutoScalingGroupName=cloud.name, PolicyName=name,
+                                              PolicyType=policy_type, MinAdjustmentMagnitude=minimum,
+                                              EstimatedInstanceWarmup=warmup, TargetValue=metric_value,
+                                              TargetTrackingConfiguration=target_tracking_config)
+        except ClientError as err:
+            AutoScaling.handle(err)
+        except Exception as err:
+            AutoScaling.fatal(err)
+
+    @staticmethod
+    def delete(self, pol_name=None):
+        """
+        Deletes the specified scaling policy.
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/autoscaling.html#AutoScaling.Client.delete_policy
+        """
+        try:
+            print('Delete Auto Scaling Group %s policy %s' % (self.asg_name, pol_name))
+            self.autoscale.delete_policy(AutoScalingGroupName=self.asg_name, PolicyName=pol_name)
+        except ClientError as err:
+            ElasticLoadBalancing.handle(err)
+        except Exception as err:
+            ElasticLoadBalancing.fatal(err)
+
+    @staticmethod
+    def list(self, asg_name=None, pol_names=None, pol_types=None, ):
+        """
+        Get AutoScaling groups by filtering
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/autoscaling.html#AutoScaling.Client.describe_policies
+        """
+        try:
+            if asg_name and pol_names and pol_types:
+                return self.autoscale.describe_auto_scaling_groups(AutoScalingGroupName=asg_name,
+                                                                   PolicyNames=pol_names,
+                                                                   PolicyTypes='TargetTrackingScaling')
+            else:
+                return self.autoscale.describe_auto_scaling_groups()
+        except ClientError as err:
+            AutoScaling.handle(err)
+        except Exception as err:
+            AutoScaling.fatal(err)
+
+
+class AutoScalingNotification(AutoScaling):
+    """
+    AUTO SCALING NOTIFICATION
+    """
+
+    def __init__(self, cloud, notice_types=('autoscaling:TEST_NOTIFICATION',)):
+        """
+        Configures an Auto Scaling group to send notifications
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/autoscaling.html#AutoScaling.Client.put_notification_configuration
+        """
+        super().__init__(cloud.name)
+        try:
+            print('Create AutoScaling Notification %s' % cloud.name)
+            self.autoscale.put_notification_configuration(AutoScalingGroupName=cloud.name, NotificationTypes=notice_types,
+                                                          TopicARN=cloud.topic_arn)
+        except ClientError as err:
+            AutoScaling.handle(err)
+        except Exception as err:
+            AutoScaling.fatal(err)
+
+    @staticmethod
+    def delete(self):
+        """
+        Deletes the specified scaling notification.
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/autoscaling.html#AutoScaling.Client.delete_notification_configuration
+        """
+        try:
+            print('Delete Auto Scaling Group %s Notification %s' % (self.asg_name, self.topic_arn))
+            self.autoscale.delete_policy(AutoScalingGroupName=self.asg_name, TopicARN=self.topic_arn)
+        except ClientError as err:
+            ElasticLoadBalancing.handle(err)
+        except Exception as err:
+            ElasticLoadBalancing.fatal(err)
+
+    @staticmethod
+    def list(self, pol_names=None, pol_types=('TargetTrackingScaling',)):
+        """
+        Get AutoScaling Notifications by filtering
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/autoscaling.html#AutoScaling.Client.describe_notification_configurations
+        """
+        try:
+            if pol_names and pol_types:
+                return self.autoscale.describe_policies(AutoScalingGroupName=self.name, PolicyNames=pol_names,
+                                                        PolicyTypes=pol_types)
+            else:
+                return self.autoscale.describe_policies(PolicyTypes=pol_types)
         except ClientError as err:
             AutoScaling.handle(err)
         except Exception as err:
@@ -1328,12 +1494,15 @@ class ElasticLoadBalancing(Compute):
     https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/elbv2.html
     """
 
-    def __init__(self, cloud):
+    def __init__(self, name, tag='boto3-client-sdk', region='eu-west-1', zone='eu-west-1a', key_pair='ec2_user',
+                 cidr4=None, sg=None, sn=None, ami_id='ami-0fad7378adf284ce0', ami_type='t2.micro',
+                 hibernate=True, user_data=None, dry=False):
         """
         Initialise data for ElasticLoadBalancing
         """
-        super().__init__(cloud.name)
-        self.client = boto3.client('elbv2')
+        super().__init__(name, tag, region, zone, key_pair, cidr4, sg, sn, ami_id, ami_type, hibernate, user_data, dry)
+        self.elb = boto3.client('elbv2')
+        self.response = None
 
 
 class LoadBalancer(ElasticLoadBalancing):
@@ -1349,11 +1518,11 @@ class LoadBalancer(ElasticLoadBalancing):
         super().__init__(cloud.name)
         try:
             print('Create Elastic Load Balancer: %s' % cloud.name)
-            self.response = cloud.compute.create_load_balancer(Name=cloud.name, Subnets=(cloud.subnet_id,),
-                                                               SecurityGroups=(cloud.sg_id,), IpAddressType=ip_version,
-                                                               Tags=[{'Key': cloud.tag, 'Value': cloud.tag}],
-                                                               Type=lb_type, Scheme=scheme)
-            self.create_tag(cloud, self.reponse['LoadBalancers']['LoadBalancerArn'])
+            self.response = self.elb.create_load_balancer(Name=cloud.name, Subnets=(cloud.subnet_id,),
+                                                          SecurityGroups=(cloud.sg_id,), IpAddressType=ip_version,
+                                                          Tags=[{'Key': cloud.tag, 'Value': cloud.tag}],
+                                                          Type=lb_type, Scheme=scheme)
+            self.create_tag(cloud, self.response['LoadBalancers']['LoadBalancerArn'])
         except ClientError as err:
             ElasticLoadBalancing.handle(err)
         except Exception as err:
@@ -1367,7 +1536,7 @@ class LoadBalancer(ElasticLoadBalancing):
         """
         try:
             print('Delete Elastic Load Balancer %s' % load_balancer_arn)
-            self.compute.delete_load_balancer(LoadBalancerArn=load_balancer_arn)
+            self.elb.delete_load_balancer(LoadBalancerArn=load_balancer_arn)
         except ClientError as err:
             ElasticLoadBalancing.handle(err)
         except Exception as err:
@@ -1381,10 +1550,76 @@ class LoadBalancer(ElasticLoadBalancing):
         """
         try:
             if self.load_balancer_arn:
-                return self.client.describe_load_balancers(LoadBalancerArns=(self.load_balancer_arn,))
+                return self.elb.describe_load_balancers(LoadBalancerArns=(self.load_balancer_arn,))
             elif self.name:
-                return self.client.describe_load_balancers(Names=(self.name,))
+                return self.elb.describe_load_balancers(Names=(self.name,))
         except ClientError as err:
             ElasticLoadBalancing.handle(err)
         except Exception as err:
             ElasticLoadBalancing.fatal(err)
+
+
+# ********************************************************* #
+# ********* SIMPLE NOTIFICATION SERVICE CLIENT ************ #
+# ********************************************************* #
+
+
+class SimpleNotificationService(Compute):
+    """
+    SIMPLE NOTIFICATION SERVICE (SNS)
+    """
+
+    def __init__(self, name, tag='boto3-client-sdk', region='eu-west-1', zone='eu-west-1a', key_pair='ec2_user'):
+        """
+        Initialise data for Simple Notifications
+        """
+        super().__init__(name, tag, region, zone, key_pair)
+        self.sns = boto3.client('sns')
+
+
+class SimpleNotificationServiceTopic(SimpleNotificationService):
+    """
+    SNS TOPIC
+    """
+
+    def __init__(self, cloud):
+        """
+        Creates a topic to which notifications can be published
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/sns.html#SNS.Client.create_topic
+        """
+        super().__init__(cloud.name)
+        try:
+            print('Create SNS topic  %s' % cloud.name)
+            self.response = self.sns.create_topic(Name=cloud.name)
+            self.topic_arn = self.response['TopicArn']
+        except ClientError as err:
+            Compute.handle(err)
+        except Exception as err:
+            Compute.fatal(err)
+
+    @staticmethod
+    def delete(self):
+        """
+        Delete SNS topic
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/sns.html#SNS.Client.delete_topic
+        """
+        try:
+            print('Delete SNS topic %s %s' % (self.topic_arn, ('(dry)' if self.dry else '')))
+            return self.sns.delete_topic(TopicArn=self.topic_arn)
+        except ClientError as err:
+            Compute.handle(err)
+        except Exception as err:
+            Compute.fatal(err)
+
+    @staticmethod
+    def list(self):
+        """
+        Get (requester) SNS topics
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/sns.html#SNS.Client.list_topics
+        """
+        try:
+            return self.sns.list_topics()
+        except ClientError as err:
+            Compute.handle(err)
+        except Exception as err:
+            Compute.fatal(err)
