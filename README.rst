@@ -11,17 +11,17 @@ Usage::
              
             ec2_client_ood.py Usage:
              
-                -a --action		start | clean | cleanstart
+            -a --action            start | clean | cleanstart
              
-             	[ -n --name		<value>		Tag Key (default: 'ec2')
-             	[ -i --image		<value>		Image ID (default: 'ami-0fad7378adf284ce0')
-             	[ -y --instance-type	<value>		Instance Type (default: 't2.micro')
-             	[ -h --hibernate	True|False	Enable instance hibernation (default: True)
-             	[ -t --tag		<value>		Tag (default: 'boto3-client-sdk')
-             	[ -z --region		<value>		Cloud Region (default 'eu-west-1)
-             	[ -c --cidr		<value>		IPv4 Cidr Block (default: '172.35.0.0/24'
-             	[ -k --keypair		<value>		Key Pair name (default: 'ec2_user'
-             	[ -d --debug				Debug logging (default: off)
+             [ -n --name           <value>      Tag Key              (default: 'boto3-client-sdk')
+             [ -t --tag            <value>      Tag Value            (default: 'boto3-client-sdk')
+             [ -i --image          <value>      Image ID             (default: 'ami-0fad7378adf284ce0')
+             [ -y --instance-type  <value>      Instance Type        (default: 't2.micro')
+             [ -h --hibernate      True|False   Instance hiberation  (default: True)
+             [ -z --region         <value>      Cloud Region         (default 'eu-west-1)
+             [ -c --cidr           <value>      IPv4 CidrBlock       (default: '172.35.0.0/24'
+             [ -k --keypair        <value>      KeyPair name         (default: 'ec2_user'
+             [ -d --debug                       Debug logging        (default: off)
 
                         
             
