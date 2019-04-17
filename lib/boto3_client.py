@@ -15,7 +15,7 @@ class Compute:
     COMPUTE
     """
     def __init__(self, name='name', tag='tag', region='eu-west-1', zone='eu-west-1a', key_pair='ec2_user',
-                 cidr_block=None, ami_id='ami-0fad7378adf284ce0', instance_type='t2.micro', hibernate=False,
+                 cidr_block=None, ami_id='ami-0fad7378adf284ce0', instance_type='t2.micro', hibernate=True,
                  user_data=None, dry=False):
         """
         Initialise data for Cloud Compute
