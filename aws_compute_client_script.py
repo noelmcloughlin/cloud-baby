@@ -30,13 +30,15 @@ find /var/www -type f -exec chmod 0664 {} \;
 echo "<?php phpinfo(); ?>" > /var/www/html/phpinfo.php
 """
 
-########### FUNCTIONS ############
+# #### FUNCTIONS ######
+
 
 def usage():
     print("\n%s Usage:" % os.path.basename(__file__))
-    print("\n\t  -a --action\tstart|clean|info\tStartup or Teardown EC2 instance environment.")
+    print("\n\t  -a --action\tstart|clean\tStartup or Teardown EC2 instance environment.")
     print("\n")
     sys.exit(2)
+
 
 def handle(error=None, resource=None):
     try:
@@ -55,8 +57,9 @@ def handle(error=None, resource=None):
     exit(1)
 
 ############
-### VPCS ###
+#   VPCS #
 ############
+
 
 def create_vpc(client, name=ec2_project_name, cidr_ipv4=ec2_cidr_block, autoipv6=False, tenancy='default', dry=True):
     """
@@ -71,6 +74,7 @@ def create_vpc(client, name=ec2_project_name, cidr_ipv4=ec2_cidr_block, autoipv6
         handle(err)
     return None
 
+
 def delete_vpc(client, vpc_id, dry=True):
     """
     Delete a virtual private cloud.
@@ -82,6 +86,7 @@ def delete_vpc(client, vpc_id, dry=True):
         return response
     except Exception as err:
         handle(err, 'vpc')
+
 
 def get_vpcs(client, name='tag:project', values=[ec2_project_name,], dry=True):
     """
@@ -95,7 +100,7 @@ def get_vpcs(client, name='tag:project', values=[ec2_project_name,], dry=True):
 
 
 ####################
-### VPC ENDPOINTS ##
+#   VPC ENDPOINTS ##
 ####################
 
 def create_vpc_endpoint(client, vpc_id, rttable_ids, subnet_ids, sg_ids, type='Gateway', svc='com.amazonaws.eu-west-1.ec2', dry=True):
@@ -111,6 +116,7 @@ def create_vpc_endpoint(client, vpc_id, rttable_ids, subnet_ids, sg_ids, type='G
         handle(err)
     return None
 
+
 def delete_vpc_endpoints(client, vpc_endpoint_id, dry=True):
     """
     Delete a virtual private cloud endpoint
@@ -122,6 +128,7 @@ def delete_vpc_endpoints(client, vpc_endpoint_id, dry=True):
         return response
     except Exception as err:
         handle(err)
+
 
 def get_vpcs_endpoints(client, name='tag:project', values=[ec2_project_name,], dry=True):
     """
@@ -135,7 +142,7 @@ def get_vpcs_endpoints(client, name='tag:project', values=[ec2_project_name,], d
 
 
 ##############################
-### VPC PEERING CONNECTIONS ##
+#   VPC PEERING CONNECTIONS ##
 ##############################
 
 def create_vpc_peering_connection(client, peer_vpc_id, vpc_id, region=ec2_peering_region_name, dry=True):
@@ -151,6 +158,7 @@ def create_vpc_peering_connection(client, peer_vpc_id, vpc_id, region=ec2_peerin
         handle(err)
     return None
 
+
 def delete_vpc_peering_connection(client, vpc_peering_connection_id, dry=True):
     """
     Delete a virtual private cloud peering_connection
@@ -162,6 +170,7 @@ def delete_vpc_peering_connection(client, vpc_peering_connection_id, dry=True):
         return response
     except Exception as err:
         handle(err)
+
 
 def get_vpcs_peering_connections(client, name='tag:project', values=[ec2_project_name,], vpc_peering_connection_ids=None, dry=True):
     """-
@@ -178,7 +187,7 @@ def get_vpcs_peering_connections(client, name='tag:project', values=[ec2_project
 
 
 ##########################
-### NETWORK INTERFACES ###
+#   NETWORK INTERFACES #
 ##########################
 
 def create_network_interface(client, desc=ec2_project_name, groups=None, private_ip=None, private_ips=None, subnet_id=None, dry=True):
@@ -194,6 +203,7 @@ def create_network_interface(client, desc=ec2_project_name, groups=None, private
         handle(err)
     return None
 
+
 def delete_network_interface(client, id, dry=True):
     """
     Delete a network_interface.
@@ -205,6 +215,7 @@ def delete_network_interface(client, id, dry=True):
         return response
     except Exception as err:
         handle(err)
+
 
 def get_network_interfaces(client, name='vpc-id', values=None, network_interface_ids=None, dry=True):
     """
@@ -220,8 +231,9 @@ def get_network_interfaces(client, name='vpc-id', values=None, network_interface
         handle(err)
 
 ##############
-### SUBNET ###
+#   SUBNET #
 ##############
+
 
 def create_subnet(client, vpc_id, name=ec2_project_name, cidr_ipv4=ec2_cidr_block, dry=True):
     """
@@ -236,6 +248,7 @@ def create_subnet(client, vpc_id, name=ec2_project_name, cidr_ipv4=ec2_cidr_bloc
         handle(err)
     return None
 
+
 def modify_subnet_attribute(client, subnet, value, dry=True):
     """
     Modify a subnet.
@@ -249,6 +262,7 @@ def modify_subnet_attribute(client, subnet, value, dry=True):
         handle(err)
     return None
 
+
 def delete_subnet(client, subnet, dry=True):
     """
     Delete a subnet.
@@ -261,6 +275,7 @@ def delete_subnet(client, subnet, dry=True):
     except Exception as err:
         handle(err)
 
+
 def get_subnets(client, name='tag:project', values=[ec2_project_name,], dry=True):
     """
     Get VPC(s) by tag (note: create_tags not working via client api, use cidr or object_id instead )
@@ -272,8 +287,9 @@ def get_subnets(client, name='tag:project', values=[ec2_project_name,], dry=True
         handle(err)
 
 #######################
-### SECURITY GROUPS ###
+#   SECURITY GROUPS #
 #######################
+
 
 def create_sg(client, vpc_id, desc=ec2_project_name, groupname=ec2_group_name, dry=True):
     """
@@ -287,6 +303,7 @@ def create_sg(client, vpc_id, desc=ec2_project_name, groupname=ec2_group_name, d
     except Exception as err:
         handle(err)
 
+
 def delete_sg(client, sg_id, dry=True):
     """
     Delete a security group.
@@ -298,6 +315,7 @@ def delete_sg(client, sg_id, dry=True):
         return response
     except Exception as err:
         handle(err)
+
 
 def get_sgs(client, name='tag:project', values=[ec2_project_name,], groups=[ec2_group_name,], dry=True):
     """
@@ -312,6 +330,7 @@ def get_sgs(client, name='tag:project', values=[ec2_project_name,], groups=[ec2_
     except Exception as err:
         handle(err)
 
+
 def get_sgs_references(client, groups, dry=True):
     """
     Get Security Groups references
@@ -321,6 +340,7 @@ def get_sgs_references(client, groups, dry=True):
         return client.describe_security_group_references(GroupId=groups, DryRun=dry)
     except Exception as err:
         handle(err)
+
 
 def authorize_sg_egress(client, from_port, to_port, proto, sg_id, ipv4, ipv6=[{'CidrIpv6', '::/0'},], dry=True):
     """
@@ -334,6 +354,7 @@ def authorize_sg_egress(client, from_port, to_port, proto, sg_id, ipv4, ipv6=[{'
     except Exception as err:
         handle(err)
 
+
 def authorize_sg_ingress(client, from_port, to_port, proto, sg_id, ipv4, ipv6=[{'CidrIpv6', '::/0'},], dry=True):
     """
     Adds ingress rules to a security group.
@@ -346,6 +367,7 @@ def authorize_sg_ingress(client, from_port, to_port, proto, sg_id, ipv4, ipv6=[{
     except Exception as err:
         handle(err)
 
+
 def revoke_sg_egress(client, from_port, to_port, proto, sg_id, ipv4, ipv6=[{'CidrIpv6', '::/0'},], dry=True):
     """
     Revoke egress rules from a security group.
@@ -357,6 +379,7 @@ def revoke_sg_egress(client, from_port, to_port, proto, sg_id, ipv4, ipv6=[{'Cid
         return response
     except Exception as err:
         handle(err)
+
 
 def revoke_sg_ingress(client, from_port, to_port, proto, sg_id, ipv4, ipv6=[{'CidrIpv6', '::/0'},], dry=True):
     """
@@ -371,8 +394,9 @@ def revoke_sg_ingress(client, from_port, to_port, proto, sg_id, ipv4, ipv6=[{'Ci
         handle(err)
 
 ###################
-### NAT GATEWAY ###
+#   NAT GATEWAY #
 ###################
+
 
 def create_nat_gateway(client, alloc_id, subnet_id, dry=True):
     """
@@ -386,6 +410,7 @@ def create_nat_gateway(client, alloc_id, subnet_id, dry=True):
     except Exception as err:
         handle(err)
 
+
 def delete_nat_gateway(client, nat_gw_id, dry=True, response=None):
     """
     Delete a nat gateway.
@@ -398,6 +423,7 @@ def delete_nat_gateway(client, nat_gw_id, dry=True, response=None):
     except Exception as err:
         handle(err)
 
+
 def get_nat_gateways(client, name, values, dry=True):
     """
     Get nat gateways by searching for vpc
@@ -409,8 +435,9 @@ def get_nat_gateways(client, name, values, dry=True):
         handle(err)
 
 ###################
-### ROUTE TABLE ###
+#   ROUTE TABLE #
 ###################
+
 
 def create_route_table(client, vpc_id, dry=True):
     """
@@ -423,6 +450,7 @@ def create_route_table(client, vpc_id, dry=True):
         return response
     except Exception as err:
         handle(err)
+
 
 def create_route(client, ver, cidr, gateway_id, route_table_id, dry=True):
     """
@@ -439,6 +467,7 @@ def create_route(client, ver, cidr, gateway_id, route_table_id, dry=True):
     except Exception as err:
         handle(err)
 
+
 def delete_route(client, cidr, route_table_id, dry=True):
     """
     Create a route in route table
@@ -450,6 +479,7 @@ def delete_route(client, cidr, route_table_id, dry=True):
         return response
     except Exception as err:
         handle(err)
+
 
 def associate_route_table(client, route_table_id, subnet_id, dry=True):
     """
@@ -463,6 +493,7 @@ def associate_route_table(client, route_table_id, subnet_id, dry=True):
     except Exception as err:
         handle(err)
 
+
 def disassociate_route_table(client, association_id, dry=True):
     """
     Disassociate a route table.
@@ -475,6 +506,7 @@ def disassociate_route_table(client, association_id, dry=True):
     except Exception as err:
         handle(err)
 
+
 def delete_route_table(client, route_table_id, dry=True):
     """
     Delete a route table.
@@ -486,6 +518,7 @@ def delete_route_table(client, route_table_id, dry=True):
         return response
     except Exception as err:
         handle(err)
+
 
 def get_route_tables(client, name, values, name1=None, values1=None, dry=True):
     """
@@ -501,8 +534,9 @@ def get_route_tables(client, name, values, name1=None, values1=None, dry=True):
         handle(err)
 
 ###################
-### NETWORK ACL ###
+#   NETWORK ACL #
 ###################
+
 
 def create_network_acl(client, vpc_id, dry=True):
     """
@@ -516,6 +550,7 @@ def create_network_acl(client, vpc_id, dry=True):
     except Exception as err:
         handle(err)
 
+
 def replace_network_acl_association(client, network_acl_id, association_id, dry=True):
     """
     Replace network acl.
@@ -527,6 +562,7 @@ def replace_network_acl_association(client, network_acl_id, association_id, dry=
         return response
     except Exception as err:
         handle(err)
+
 
 def create_network_acl_entry(client, id, num, action, cidr=ec2_cidr_block, proto='6', from_port=22, to_port=22, egress=False, dry=False):
     """
@@ -544,6 +580,7 @@ def create_network_acl_entry(client, id, num, action, cidr=ec2_cidr_block, proto
     except Exception as err:
         handle(err)
 
+
 def delete_network_acl_entry(client, network_acl_id, num=100, egress=False, dry=True):
     """
     Delete a network acl entry
@@ -555,6 +592,7 @@ def delete_network_acl_entry(client, network_acl_id, num=100, egress=False, dry=
         return response
     except Exception as err:
         handle(err)
+
 
 def delete_network_acl(client, network_acl_id, dry=True):
     """
@@ -568,6 +606,7 @@ def delete_network_acl(client, network_acl_id, dry=True):
     except Exception as err:
         handle(err)
 
+
 def get_network_acls(client, name, values, dry=True):
     """
     Get network acls by searching for stuff
@@ -579,8 +618,9 @@ def get_network_acls(client, name, values, dry=True):
         handle(err)
 
 ###################
-### ELASTIC IPS ###
+#   ELASTIC IPS #
 ###################
+
 
 def create_elastic_ip(client, domain='vpc', dry=True):
     """
@@ -594,6 +634,7 @@ def create_elastic_ip(client, domain='vpc', dry=True):
     except Exception as err:
         handle(err)
 
+
 def associate_elastic_ip(client, alloc_id, instance_id, dry=True):
     """
     Associate elastic ip with ec2_instance
@@ -605,6 +646,7 @@ def associate_elastic_ip(client, alloc_id, instance_id, dry=True):
         return response
     except Exception as err:
         handle(err)
+
 
 def disassociate_elastic_ip(client, association_id, dry=True):
     """
@@ -618,6 +660,7 @@ def disassociate_elastic_ip(client, association_id, dry=True):
     except Exception as err:
         handle(err)
 
+
 def release_elastic_ip(client, alloc_id, public_ip='', dry=True):
     """
     Delete a elastic ip.
@@ -629,6 +672,7 @@ def release_elastic_ip(client, alloc_id, public_ip='', dry=True):
         return response
     except Exception as err:
         handle(err)
+
 
 def get_elastic_ips(client, name='domain', values=['vpc',], instances=[], dry=True):
     """
@@ -645,7 +689,7 @@ def get_elastic_ips(client, name='domain', values=['vpc',], instances=[], dry=Tr
 
 
 ########################
-### INTERNET GATEWAY ###
+#   INTERNET GATEWAY #
 ########################
 
 def create_internet_gateway(client, dry=True):
@@ -660,6 +704,7 @@ def create_internet_gateway(client, dry=True):
     except Exception as err:
         handle(err)
 
+
 def delete_internet_gateway(client, gateway_id, dry=True):
     """
     Delete a internet gateway.
@@ -672,6 +717,7 @@ def delete_internet_gateway(client, gateway_id, dry=True):
     except Exception as err:
         handle(err)
 
+
 def get_internet_gateways(client, name, values, dry=True):
     """
     Get internet gateways IPs by searching for stuff
@@ -681,6 +727,7 @@ def get_internet_gateways(client, name, values, dry=True):
         return client.describe_internet_gateways(Filters=[{'Name': name, 'Values': values},], DryRun=dry)
     except Exception as err:
         handle(err)
+
 
 def attach_internet_gateway(client, gateway_id, vpc_id, dry=True):
     """
@@ -693,6 +740,7 @@ def attach_internet_gateway(client, gateway_id, vpc_id, dry=True):
         return response
     except Exception as err:
         handle(err)
+
 
 def detach_internet_gateway(client, gateway_id, vpc_id, dry=True):
     """
@@ -708,7 +756,7 @@ def detach_internet_gateway(client, gateway_id, vpc_id, dry=True):
 
 
 ####################
-### EC2 RESOURCE ###
+#   EC2 RESOURCE #
 ####################
 
 def create_instance(ec2, sg_id, sn_id, image_id=ec2_ami, image_type=ec2_ami_type, userdata='', key=ec2_keypair_name, dry=True):
@@ -723,6 +771,7 @@ def create_instance(ec2, sg_id, sn_id, image_id=ec2_ami, image_type=ec2_ami_type
     except Exception as err:
         handle(err)
 
+
 def delete_instance(instance, instances, dry=True):
     """
     Delete a ec2 instance
@@ -735,6 +784,7 @@ def delete_instance(instance, instances, dry=True):
     except Exception as err:
         handle(err)
 
+
 def get_instances(client, name, values, dry=True):
     """
     Get EC2 instances by searching for stuff
@@ -746,9 +796,10 @@ def get_instances(client, name, values, dry=True):
         handle(err)
 
 
-################################
-#### cleanup all resources #####
-################################
+###########################
+#  cleanup all resources  #
+###########################
+
 def clean_sgs(client, sg_id, sg_name, dry):
     revoke_sg_ingress(client, 22, 22, 'TCP',   sg_id, [{'CidrIp': '0.0.0.0/0'},], [], dry)
     revoke_sg_ingress(client, 80, 80, 'TCP',   sg_id, [{'CidrIp': '0.0.0.0/0'},], [], dry)
@@ -765,7 +816,7 @@ def clean_sgs(client, sg_id, sg_name, dry):
 def clean(ec2, client):
     for dry in (True, False):
         try:
-            #### VPC ####
+            # VPC #
             print("\nCLEAN DOWN EC2 ENVIRON %s" % ('dry' if dry else 'for real, please be patient'))
             vpcs = get_vpcs(client, 'cidr', [ec2_cidr_block,], dry)
             if vpcs and "Vpcs" in vpcs and vpcs['Vpcs']:
@@ -773,7 +824,7 @@ def clean(ec2, client):
                     ec2_vpc_id = vpc['VpcId']
                     print('Found: %s' % ec2_vpc_id)
 
-                    ### VPC ENDPOINTS ###
+                    # VPC ENDPOINTS #
                     endpoints = get_vpcs_endpoints(client, 'vpc-id', [ec2_vpc_id,], dry)
                     if endpoints and 'VpcEndpoints' in endpoints and endpoints['VpcEndpoints']:
                         for endpoint in endpoints['VpcEndpoints']:
@@ -781,7 +832,7 @@ def clean(ec2, client):
                     else:
                         print('No vpc endpoints detected')
 
-                    ### VPC CONNECTION ENDPOINTS ###
+                    # VPC CONNECTION ENDPOINTS #
                     conn_endpoints = get_vpcs_peering_connections(client, 'tag:project', [ec2_project_name], dry)
                     if conn_endpoints and 'VpcPeeringConnections' in conn_endpoints and conn_endpoints['VpcPeeringConnections']:
                         for conn_endpoint in conn_endpoints['VpcPeeringConnections']:
@@ -789,13 +840,13 @@ def clean(ec2, client):
                     else:
                         print('No vpc connection endpoints detected')
 
-                    ### EC2 INSTANCES ###
+                    # EC2 INSTANCES #
                     instances = get_instances(client, 'vpc-id', [ec2_vpc_id,], dry)
                     if instances and "Reservations" in instances and instances['Reservations']:
                         for instance in instances['Reservations'][0]['Instances']:
                             ec2_instance_id = instance['InstanceId']
 
-                            ### ELASTIC IPS ###
+                            # ELASTIC IPS #
                             eips = get_elastic_ips(client, 'domain', ['vpc',], [ec2_instance_id,], dry)
                             if eips and "Addresses" in eips and eips['Addresses']:
                                 for ip in eips['Addresses']:
@@ -808,7 +859,7 @@ def clean(ec2, client):
                     else:
                         print('No ec2 instances detected')
 
-                    ### INTERNET GATEWAY ###
+                    # INTERNET GATEWAY #
                     gateways = get_internet_gateways(client, 'attachment.vpc-id', [ec2_vpc_id,], dry)
                     if gateways and "InternetGateways" in gateways and gateways['InternetGateways']:
                         for igw in gateways['InternetGateways']:
@@ -817,7 +868,7 @@ def clean(ec2, client):
                     else:
                         print('No internet gateways detected')
 
-                    ### NETWORK INTERFACES ###
+                    # NETWORK INTERFACES #
                     network_interfaces = get_network_interfaces(client, 'group-name', [ec2_group_name], None, dry)
                     if network_interfaces and "NetworkInterfaces" in network_interfaces and network_interfaces['NetworkInterfaces']:
                         for iface in network_interfaces['NetworkInterfaces']:
@@ -825,7 +876,7 @@ def clean(ec2, client):
                     else:
                         print('No network interfaces detected')
 
-                    ### SUBNETS ###
+                    # SUBNETS #
                     subnets = get_subnets(client, 'vpc-id', [ec2_vpc_id,], dry)
                     if subnets and "Subnets" in subnets and subnets['Subnets']:
                         for sn in subnets['Subnets']:
@@ -833,7 +884,7 @@ def clean(ec2, client):
                     else:
                         print('No subnets detected')
 
-                    ### ROUTE TABLES ###
+                    # ROUTE TABLES #
                     route_tables = get_route_tables(client, 'vpc-id', [ec2_vpc_id,], 'association.main', False, dry)
                     if route_tables and "RouteTables" in route_tables and route_tables['RouteTables']:
                         for rt in route_tables['RouteTables']:
@@ -851,7 +902,7 @@ def clean(ec2, client):
                     else:
                         print('No route tables detected')
 
-                    ### NAT GATEWAY ###
+                    # NAT GATEWAY #
                     gateways = get_nat_gateways(client, 'vpc-id', [ec2_vpc_id,], dry)
                     if gateways and "NatGateways" in gateways and gateways['NatGateways']:
                         for ngw in gateways['NatGateways']:
@@ -859,7 +910,7 @@ def clean(ec2, client):
                     else:
                         print('No nat gateways detected')
 
-                    ### NETWORK ACLS ###
+                    # NETWORK ACLS #
                     acls = get_network_acls(client, 'vpc-id', [ec2_vpc_id,], dry)
                     if acls and "NetworkAcls" in acls and acls['NetworkAcls']:
                         for acl in acls['NetworkAcls']:
@@ -871,12 +922,12 @@ def clean(ec2, client):
                     else:
                         print('No network acls detected')
 
-                    ### SECURITY GROUPS ###
+                    # SECURITY GROUPS #
                     sgs = get_sgs(client, 'vpc-id', [ec2_vpc_id,], [ec2_group_name,], dry)
                     if sgs and "SecurityGroups" in sgs and sgs['SecurityGroups']:
                         for sg in sgs['SecurityGroups']:
 
-                            ### REFERENCING SECURITY GROUPS ###
+                            # REFERENCING SECURITY GROUPS #
                             refs = get_sgs_references(client, [sg['GroupId'],], dry)
                             if refs and "SecurityGroupReferenceSet" in refs and refs['SecurityGroupReferenceSet']:
                                 for ref in refs['SecurityGroupReferenceSet']:
@@ -888,7 +939,7 @@ def clean(ec2, client):
                     else:
                         print('No security groups detected')
 
-                    ### VPC ###
+                    # VPC #
                     check = get_vpcs(client, 'vpc-id', [ec2_vpc_id,], dry)
                     if check and 'Vpcs' in check and check['Vpcs']:
                         print('Deleting VPC %s' % ec2_vpc_id)
@@ -903,40 +954,41 @@ def clean(ec2, client):
     return(0)
 
 ##########################
-#### Create resources ####
+#    Create resources    #
 ##########################
+
+
 def start(ec2, client):
     for dry in (True, False):
         try:
             print("\nCREATE EC2 ENVIRON %s" % ('dry' if dry else 'for real, please be patient'))
-            ### VPC ###
+            # VPC #
             ec2_vpc_id = create_vpc(client, ec2_project_name, ec2_cidr_block, True, 'default', dry)
             if ec2_vpc_id:
                 ec2_vpc_id = ec2_vpc_id['Vpc']['VpcId']
                 ec2_elastic_ip_alloc_id=None
-                ec2_route_table_id=None
                 ec2_network_acl_associations_dict=None
 
-                ### INTERNET GATEWAY
+                # INTERNET GATEWAY
                 ec2_igw_id = create_internet_gateway(client, dry)
                 if ec2_igw_id:
                     ec2_igw_id = ec2_igw_id['InternetGateway']['InternetGatewayId']
                     attach_internet_gateway(client, ec2_igw_id, ec2_vpc_id, dry)
 
-                ### ROUTE TABLE ###
+                # ROUTE TABLE #
                 ec2_route_table_id = create_route_table(client, ec2_vpc_id, dry)
                 if ec2_route_table_id:
                     ec2_route_table_id = ec2_route_table_id['RouteTable']['RouteTableId']
                     create_route(client, 'ipv4', '0.0.0.0/0', ec2_igw_id, ec2_route_table_id, dry)
                     create_route(client, 'ipv6', '::/0',      ec2_igw_id, ec2_route_table_id, dry)
 
-                ### SUBNET ###
+                # SUBNET #
                 ec2_subnet_id = create_subnet(client, ec2_vpc_id, ec2_project_name, ec2_cidr_block, dry)
                 if ec2_subnet_id:
                     ec2_subnet_id = ec2_subnet_id['Subnet']['SubnetId']
                     modify_subnet_attribute(client, ec2_subnet_id, True, dry)
 
-                    ### NETWORK ACL ###
+                    # NETWORK ACL #
                     ec2_network_acl_id = create_network_acl(client, ec2_vpc_id, dry)
                     if ec2_network_acl_id:
                         ec2_network_acl_associations_dict=ec2_network_acl_id['NetworkAcl']['Associations']
@@ -944,17 +996,17 @@ def start(ec2, client):
                         create_network_acl_entry(client, ec2_network_acl_id, 100, 'allow', ec2_cidr_block, '6', 0, 0, False, dry)
                         create_network_acl_entry(client, ec2_network_acl_id, 100, 'allow', ec2_cidr_block, '6', 0, 0, True, dry)
 
-                    ### ELASTIC IP ###
+                    # ELASTIC IP #
                     ec2_elastic_ip_alloc_id = create_elastic_ip(client, 'vpc', dry)
                     if ec2_elastic_ip_alloc_id:
                         ec2_elastic_ip_alloc_id = ec2_elastic_ip_alloc_id['AllocationId']
 
-                    ### NAT GATEWAY
-                    #ec2_nat_gw_id = create_nat_gateway(client, ec2_elastic_ip_alloc_id, ec2_subnet_id, dry)
-                    #if ec2_nat_gw_id:
+                    # NAT GATEWAY
+                    # ec2_nat_gw_id = create_nat_gateway(client, ec2_elastic_ip_alloc_id, ec2_subnet_id, dry)
+                    # if ec2_nat_gw_id:
                     #    ec2_nat_gw_id = ec2_nat_gw_id['NatGateway']['NatGatewayId']
 
-                ### SECURITY GROUP ###
+                # SECURITY GROUP #
                 ec2_sg_id = create_sg(client, ec2_vpc_id, ec2_project_name, ec2_group_name, dry)
                 if ec2_sg_id:
                     ec2_sg_id = ec2_sg_id['GroupId']
@@ -965,7 +1017,7 @@ def start(ec2, client):
                     authorize_sg_egress(client, 80, 80, 'TCP',    ec2_sg_id, [{'CidrIp': '0.0.0.0/0'},], [{'CidrIpv6': '::/0'},], dry)
                     authorize_sg_egress(client, 443, 443, 'TCP',  ec2_sg_id, [{'CidrIp': '0.0.0.0/0'},], [{'CidrIpv6': '::/0'},], dry)
 
-                    ### EC2 INSTANCE ###
+                    # EC2 INSTANCE #
                     instance = create_instance(ec2, ec2_sg_id, ec2_subnet_id, ec2_ami, ec2_ami_type, ec2_userdata, ec2_keypair_name, dry)
                     if instance and instance[0]:
                         ec2_instance_id = instance[0].id
@@ -973,19 +1025,19 @@ def start(ec2, client):
                             instance = ec2.Instance(ec2_instance_id)
                             instance.wait_until_running(Filters=[{'Name': 'instance-id', 'Values': [ec2_instance_id,]}], DryRun=dry)
 
-                            #### ELASTIC IP ASSOCIATION  ####
+                            #### ELASTIC IP ASSOCIATION     #
                             if ec2_elastic_ip_alloc_id:
                                 ec2_elastic_ip_association_id=associate_elastic_ip(client, ec2_elastic_ip_alloc_id, ec2_instance_id, dry)
                                 if ec2_elastic_ip_association_id:
                                     ec2_elastic_ip_association_id = ec2_elastic_ip_association_id['AssociationId']
 
-                            #### ROUTE TABLE ASSOCIATION  ####
+                            #### ROUTE TABLE ASSOCIATION     #
                             if ec2_route_table_id:
                                 ec2_route_table_association_id = associate_route_table(client, ec2_route_table_id, ec2_subnet_id, dry)
                                 if ec2_route_table_association_id:
                                     ec2_route_table_association_id = ec2_route_table_association_id['AssociationId']
 
-                            #### NETWORK ACL ASSOCIATION ####
+                            #### NETWORK ACL ASSOCIATION    #
                             if ec2_subnet_id and ec2_network_acl_associations_dict:
                                 acl_association_id = ec2_network_acl_associations_dict[0]['NetworkAclAssociationId']
                                 replace_network_acl_association(client, ec2_network_acl_id, association_id, dry)
@@ -999,7 +1051,7 @@ def start(ec2, client):
 
 
 #############
-### MAIN ####
+#   MAIN    #
 #############
 
 def main(argv):
@@ -1008,7 +1060,7 @@ def main(argv):
     except getopt.GetoptError as e:
         handle(e)
 
-    ### command line arguments ###
+    # command line arguments #
     if not opts:
         usage()
     for opt, arg in opts:
@@ -1019,21 +1071,19 @@ def main(argv):
 
     ec2 = boto3.resource('ec2', region_name=ec2_region_name)
     client = ec2.meta.client
-    tag = ec2.Tag('resource_id', 'key', 'value')
 
-    ### workflow ###
+    # workflow #
     if action == "start":
         start(ec2, client)
     elif action in ("stop", "clean", "terminate"):
         clean(ec2, client)
-    elif action == "info":
-        info(ec2, client)
     else:
         usage()
 
+
 if __name__ == "__main__":
-   try:
-       main(sys.argv[1:])
-   except Exception as err:
-       handle(err)
+    try:
+        main(sys.argv[1:])
+    except Exception as err:
+        handle(err)
 exit(0)
