@@ -1,5 +1,5 @@
 ================
-cloud-cli
+public-cloud-cli
 ================
 
 AWS Boto3 Client SDK
