@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+#############################################
+# Copyright 2019 NoelMcloughlin
+#############################################
 #- -- -- - -- -- - - - - -- - - - - -- - - -- --- - - - - ----- - - - -- -- - - - ---  - ---
 # create, launch and monitoring a public-facing web server in the Amazon cloud. The web
 # server will run on an EC2 instance and display some static content that is stored in S3.
