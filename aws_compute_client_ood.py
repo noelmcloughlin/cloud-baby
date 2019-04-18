@@ -18,8 +18,14 @@ all_ip4 = '0.0.0.0/0'
 all_ip6 = '::/0'
 
 
-def launch_aws(cloud):
+def set_token(token):
+    return {'mode': token['mode'], 'topic_arn': token['topic_arn'],
+            'sg_id': token['sg_id'], 'subnet_id': token['subnet_id']}
 
+
+def launch_aws(cloud, token):
+
+    token = set_token(token)
     for cloud.dry in (True, False):
         try:
 
@@ -32,14 +38,14 @@ def launch_aws(cloud):
                 if not cloud.dry:
                     print('Setup Simple Notification Service')
                     resource = sdk.SimpleNotificationServiceTopic(cloud)
-                    cloud.topic_arn = resource.response['TopicArn']
+                    cloud.topic_arn = token['topic_arn'] = resource.response['TopicArn']
 
             ###################################
             # VIRTUAL PRIVATE CLOUD & SECURITY
             ###################################
             if 'Compute' in str(type(cloud)):
-                print('%s' % ('Startup Virtual Private Cloud & Security' if not cloud.dry else ''))
 
+                print('%s' % ('Startup Virtual Private Cloud & Security' if not cloud.dry else ''))
                 resource = sdk.Vpc(cloud, True, 'default')
                 if resource.response and 'Vpc' in resource.response and 'VpcId' in resource.response['Vpc']:
                     cloud.vpc_id = resource.response['Vpc']['VpcId']
@@ -60,7 +66,7 @@ def launch_aws(cloud):
                     # SUBNET
                     resource = sdk.Subnet(cloud)
                     if resource.response and 'Subnet' in resource.response:
-                        cloud.subnet_id = resource.response['Subnet']['SubnetId']
+                        cloud.subnet_id = token['subnet_id'] = resource.response['Subnet']['SubnetId']
                         resource.modify_attr(cloud, cloud.subnet_id, True)
 
                         # NETWORK ACL
@@ -94,18 +100,13 @@ def launch_aws(cloud):
                     # SECURITY GROUP
                     resource = sdk.SecurityGroup(cloud)
                     if resource and resource.response and 'GroupId' in resource.response:
-                        cloud.sg_id = resource.response['GroupId']
+                        cloud.sg_id = token['sg_id'] = resource.response['GroupId']
                         resource.auth_ingress(cloud, 22, 22, 'TCP', [{'CidrIp': all_ip4}], [{'CidrIpv6': all_ip6}])
                         resource.auth_egress(cloud, 22, 22, 'TCP',  [{'CidrIp': all_ip4}], [{'CidrIpv6': all_ip6}])
                         resource.auth_ingress(cloud, 80, 80, 'TCP', [{'CidrIp': all_ip4}], [{'CidrIpv6': all_ip6}])
                         resource.auth_egress(cloud, 80, 80, 'TCP',  [{'CidrIp': all_ip4}], [{'CidrIpv6': all_ip6}])
                         resource.auth_ingress(cloud, 443, 443, 'TCP', [{'CidrIp': all_ip4}], [{'CidrIpv6': all_ip6}])
                         resource.auth_egress(cloud, 443, 443, 'TCP', [{'CidrIp': all_ip4}], [{'CidrIpv6': all_ip6}])
-
-                        # GET AVAILABILITY ZONE
-                        resources = sdk.Subnet.list(cloud, 'subnet-id', cloud.subnet_id)
-                        if resources and 'Subnets' in resources and resources['Subnets']:
-                            cloud.zone = resources['Subnets'][0]['AvailabilityZone']
 
                         # LAUNCH TEMPLATE
                         resource = sdk.LaunchTemplate(cloud)
@@ -115,9 +116,9 @@ def launch_aws(cloud):
                             #######################
                             # STANDARD EC2 INSTANCE
                             #######################
-                            if 'Compute' in str(type(cloud)) and cloud.sg_id and cloud.sg_id == 'instance':
-                                print('%s' % ('Startup EC2 Instance' if not cloud.dry else ''))
+                            if 'Compute' in str(type(cloud)) and token['mode'] == 'instance':
 
+                                print('%s' % ('Startup EC2 Instance' if not cloud.dry else ''))
                                 resource = sdk.Instance(cloud, 1, 1)
                                 if resource:
                                     cloud.instance_id = resource.response[0].id
@@ -142,10 +143,13 @@ def launch_aws(cloud):
             #######################
             # AUTO SCALING GROUP
             #######################
-            if 'AutoScaling' in str(type(cloud)) and cloud.sg_id and cloud.sg_id not in ('instance', 'auto'):
-                print('%s' % ('Startup AutoScaling Instances' if not cloud.dry else ''))
+            if 'AutoScaling' in str(type(cloud)) and token['mode'] == 'autoscaling':
 
+                print('%s' % ('Startup AutoScaling Instances' if not cloud.dry else ''))
                 if not cloud.dry:
+                    cloud.topic_arn = token['topic_arn']
+                    cloud.sg_id = token['sg_id']
+                    cloud.subnet_id = token['subnet_id']
                     # LAUNCH CONFIGURATION
                     resource = sdk.LaunchConfiguration(cloud)
                     if resource:
@@ -154,8 +158,8 @@ def launch_aws(cloud):
                         if resource:
                             # AUTO SCALING POLICY
                             sdk.AutoScalingGroupTags(cloud)
-                            resource = sdk.AutoScalingPolicy(cloud, cloud.name, 'TargetTrackingScaling', 1, 90,
-                                                             'CPU 50', 'ASGAverageCPUUtilization', 50)
+                            resource = sdk.AutoScalingPolicy(cloud, 'TargetTrackingScaling', 90,
+                                                             'ASGAverageCPUUtilization', 50)
                             if resource:
                                 # AUTO SCALING NOTIFICATION
                                 sdk.AutoScalingNotification(cloud, ('autoscaling:EC2_INSTANCE_LAUNCH',
@@ -164,29 +168,29 @@ def launch_aws(cloud):
                                                                     'autoscaling:EC2_INSTANCE_TERMINATE_ERROR'))
         except Exception as err:
             sdk.Compute.handle(err)
+    return token
 
-    return [cloud.sg_id, cloud.subnet_id]
 
+def teardown_aws(cloud, token):
 
-def teardown_aws(cloud):
+    token = set_token(token)
 
     for cloud.dry in (True, False):
         try:
             ##############################
             # SIMPLE NOTIFICATION SERVICE
             ##############################
-            if 'SimpleNotificationService' in str(type(cloud)):
-
-                print('%s' % ('Teardown Simple Notification Service ' if not cloud.dry else ''))
-                if not cloud.dry:
-                    resources = sdk.SimpleNotificationServiceTopic.list(cloud)
-                    if resources and 'Topics' in resources and resources['Topics']:
-                        for topic in resources['Topics']:
-                            cloud.topic_arn = topic['TopicArn']
-                            if cloud.name in str(topic['TopicArn']):
-                                sdk.SimpleNotificationServiceTopic.delete(cloud)
-                    else:
-                        print('No Simple Notification Service found')
+            if 'SimpleNotificationService' in str(type(cloud)) and not cloud.dry:
+                print('%s' % ('\nTeardown Simple Notification Service ' if not cloud.dry else ''))
+                resources = sdk.SimpleNotificationServiceTopic.list(cloud)
+                if resources and 'Topics' in resources and resources['Topics']:
+                    for topic in resources['Topics']:
+                        cloud.topic_arn = token['topic_arn'] = topic['TopicArn']
+                        if cloud.name in str(topic['TopicArn']):
+                            sdk.SimpleNotificationServiceTopic.delete(cloud)
+                    print('Done')
+                else:
+                    print('No Simple Notification Service found')
 
             ######################
             # AUTO SCALING GROUPS
@@ -203,7 +207,7 @@ def teardown_aws(cloud):
                         resource = sdk.AutoScalingNotification.list(cloud, (cloud.name,))
                         if 'NotificationConfigurations' in resource and resources['NotificationConfigurations']:
                             for notification in resource['NotificationConfigurations']:
-                                cloud.topic_arn = notification['TopicArn']
+                                cloud.topic_arn = token['topic_arn'] = notification['TopicArn']
                                 sdk.AutoScalingNotification.delete(cloud)
                         elif not cloud.dry:
                             print('No auto-scaling notifications found')
@@ -241,7 +245,7 @@ def teardown_aws(cloud):
                         if resources and 'AutoScalingGroups' in resources and resources['AutoScalingGroups']:
                             for instance in resources['AutoScalingGroups']:
                                 cloud.asg_name = instance['AutoScalingGroupName']
-                                sdk.AutoScalingGroup.delete(cloud)
+                                sdk.AutoScalingGroup.delete(cloud, True)
                         elif not cloud.dry:
                             print('No auto-scaling groups found')
 
@@ -333,7 +337,7 @@ def teardown_aws(cloud):
                         resources = sdk.Subnet.list(cloud)
                         if resources and "Subnets" in resources and resources['Subnets']:
                             for item in resources['Subnets']:
-                                cloud.subnet_id = item['SubnetId']
+                                cloud.subnet_id = token['subnet_id'] = item['SubnetId']
                                 sdk.Subnet.delete(cloud)
                         elif not cloud.dry:
                             print('No subnets detected')
@@ -405,8 +409,9 @@ def teardown_aws(cloud):
                                                 sdk.SecurityGroup.delete(cloud, g['GroupId'])
                                 elif not cloud.dry:
                                     print('No referencing security groups detected')
+
                                 if item['GroupName'] != 'default':
-                                    cloud.sg_id = item['GroupId']
+                                    cloud.sg_id = token['sg_id'] = item['GroupId']
                                     print('Deleting security group %s' % cloud.sg_id)
                                     sdk.SecurityGroup.delete(cloud, cloud.sg_id)
                         elif not cloud.dry:
@@ -416,7 +421,8 @@ def teardown_aws(cloud):
                     print('No VPCs found')
         except Exception as err:
             sdk.Compute.handle(err)
-    return [cloud.sg_id, cloud.subnet_id]
+
+    return token
 
 
 def usage():
@@ -454,8 +460,8 @@ def main(argv):
     key = 'ec2_user'
     ami_id = 'ami-0fad7378adf284ce0'
     ami_type = 't2.micro'
-    mode = 'instance'
     sleep = True
+    token = {'mode': 'instance', 'topic_arn': None, 'sg_id': None, 'subnet_id': None}
 
     for opt, arg in opts:
         if opt in ("-a", "--action",):
@@ -463,7 +469,7 @@ def main(argv):
             if action not in ('start', 'clean', 'cleanstart',):
                 usage()
         elif opt in ("-m", "--mode",):
-            mode = arg.lower()
+            token.update({'mode': arg.lower()})
         elif opt in ("-n", "--name"):
             name = arg()
         elif opt in ("-i", "--image"):
@@ -494,17 +500,19 @@ def main(argv):
 
     # interface
     if 'clean' in action:
-        teardown_aws(sdk.SimpleNotificationService(name, tag, region, zone, key))
-        sg, sn = teardown_aws(sdk.Compute(name, tag, region, zone, key, cidr4))
-        teardown_aws(sdk.AutoScaling(name, tag, region, zone, key, cidr4, sg, sn))
+        token = teardown_aws(sdk.SimpleNotificationService(name, tag, region, zone, key), token)
+        token = teardown_aws(sdk.Compute(name, tag, region, zone, key, cidr4), token)
+        teardown_aws(sdk.AutoScaling(name, tag, region, zone, key, cidr4), token)
 
     if 'start' in action:
-        if mode == 'instance':
-            launch_aws(sdk.Compute(name, tag, region, zone, key, cidr4, 'instance', None, ami_id, ami_type, sleep))
-        elif mode == 'autoscaling':
-            launch_aws(sdk.SimpleNotificationService(name, tag, region, zone, key))
-            sg, sn = launch_aws(sdk.Compute(name, tag, region, zone, key, cidr4, 'auto', None, ami_id, ami_type, sleep))
-            launch_aws(sdk.AutoScaling(name, tag, region, zone, key, cidr4, sg, sn, ami_id, ami_type))
+        if 'instance' in token['mode']:
+            launch_aws(sdk.Compute(name, tag, region, zone, key, cidr4, ami_id, ami_type, sleep), token)
+        elif 'autoscaling' in token['mode']:
+            token = launch_aws(sdk.SimpleNotificationService(name, tag, region, zone, key), token)
+            token = launch_aws(sdk.Compute(name, tag, region, zone, key, cidr4, ami_id, ami_type, sleep), token)
+            launch_aws(sdk.AutoScaling(name, tag, region, zone, key, cidr4, ami_id, ami_type), token)
+        else:
+            usage()
 
 
 if __name__ == "__main__":

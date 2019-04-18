@@ -15,8 +15,8 @@ class Compute:
     COMPUTE
     """
     def __init__(self, name='name', tag='tag', region='eu-west-1', zone='eu-west-1a', key_pair='ec2_user',
-                 cidr4=None, sg=None, sn=None, ami_id='ami-0fad7378adf284ce0', ami_type='t2.micro',
-                 hibernate=True, user_data=None, dry=False):
+                 cidr4=None, ami_id='ami-0fad7378adf284ce0', ami_type='t2.micro', hibernate=True, user_data=None,
+                 dry=False):
         """
         Initialise data for Cloud Compute
         """
@@ -31,8 +31,6 @@ class Compute:
         self.zone = zone
         self.key_pair = key_pair
         self.cidr4 = cidr4
-        self.sg_id = sg
-        self.subnet_id = sn
         self.ami_id = ami_id
         self.ami_type = ami_type
         self.hibernate = hibernate
@@ -187,10 +185,10 @@ class Instance(Compute):
         try:
             print('Create Instance from %s' % cloud.template_id)
             self.response = cloud.compute.create_instances(LaunchTemplate={'LaunchTemplateId': cloud.template_id},
-                                                            SubnetId=cloud.subnet_id, SecurityGroupIds=(cloud.sg_id,),
-                                                            MaxCount=cloud.max_count, MinCount=cloud.min_count,
-                                                            Placement={'AvailabilityZone': cloud.zone},
-                                                            ClientToken=cloud.token)
+                                                           SubnetId=cloud.subnet_id, SecurityGroupIds=(cloud.sg_id,),
+                                                           MaxCount=cloud.max_count, MinCount=cloud.min_count,
+                                                           Placement={'AvailabilityZone': cloud.zone},
+                                                           ClientToken=cloud.token)
             self.create_tag(cloud, self.response[0].id)
         except ClientError as err:
             Compute.handle(err)
@@ -315,7 +313,7 @@ class Vpc(Compute):
         """
         super().__init__(cloud.name)
         try:
-            print('Create vpc %s %s' % (cloud.name, ('(dry)' if cloud.dry else '')))
+            print('%s %s' % ('Create VPC', cloud.name) if cloud.dry else '')
             self.response = self.client.create_vpc(CidrBlock=cloud.cidr4, DryRun=cloud.dry,
                                                    InstanceTenancy=tenancy, AmazonProvidedIpv6CidrBlock=auto_ipv6)
             self.create_tag(cloud, self.response['Vpc']['VpcId'])
@@ -524,7 +522,8 @@ class Subnet(Compute):
         super().__init__(cloud.name)
         try:
             print('Create subnet for %s %s' % (cloud.cidr4, ('(dry)' if cloud.dry else '')))
-            self.response = self.client.create_subnet(CidrBlock=cloud.cidr4, VpcId=cloud.vpc_id, DryRun=cloud.dry)
+            self.response = self.client.create_subnet(AvailabilityZone=cloud.zone, CidrBlock=cloud.cidr4,
+                                                      VpcId=cloud.vpc_id, DryRun=cloud.dry)
             self.create_tag(cloud, self.response['Subnet']['SubnetId'])
         except ClientError as err:
             Compute.handle(err)
@@ -1156,13 +1155,12 @@ class AutoScaling(Compute):
     AUTO-SCALING
     """
     def __init__(self, name, tag='boto3-client-sdk', region='eu-west-1', zone='eu-west-1a', key_pair='ec2_user',
-                 cidr4=None, sg=None, sn=None, ami_id='ami-0fad7378adf284ce0', ami_type='t2.micro',
-                 hibernate=True, user_data=None, dry=False):
+                 cidr4=None, ami_id='ami-0fad7378adf284ce0', ami_type='t2.micro', hibernate=True, user_data=None,
+                 dry=False):
         """
         Initialise data for AutoScaling
         """
-        super().__init__(name, tag, region, zone, key_pair, cidr4, sg, sn, ami_id, ami_type, hibernate,
-                         user_data, dry)
+        super().__init__(name, tag, region, zone, key_pair, cidr4, ami_id, ami_type, hibernate, user_data, dry)
         self.autoscale = boto3.client('autoscaling')
 
 
@@ -1264,7 +1262,7 @@ class AutoScalingGroup(AutoScaling):
             AutoScaling.fatal(err)
 
     @staticmethod
-    def delete(self, force=False):
+    def delete(self, force=True):
         """
         Delete AutoScaling group
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/autoscaling.html#AutoScaling.Client.delete_auto_scaling_group
@@ -1272,6 +1270,8 @@ class AutoScalingGroup(AutoScaling):
         try:
             print('Delete AutoScaling group %s' % self.asg_name)
             self.autoscale.delete_auto_scaling_group(AutoScalingGroupName=self.asg_name, ForceDelete=force)
+            print('Wait 60s for pending delete ...')
+            time.sleep(60)
         except ClientError as err:
             AutoScaling.handle(err)
         except Exception as err:
@@ -1285,9 +1285,10 @@ class AutoScalingGroup(AutoScaling):
         """
         try:
             if self.name:
-                return self.autoscale.describe_auto_scaling_groups(AutoScalingGroupNames=(self.name,))
+                self.response = self.autoscale.describe_auto_scaling_groups(AutoScalingGroupNames=(self.name,))
             else:
-                return self.autoscale.describe_auto_scaling_groups()
+                self.response = self.autoscale.describe_auto_scaling_groups()
+            return self.response
         except ClientError as err:
             AutoScaling.handle(err)
         except Exception as err:
@@ -1379,21 +1380,19 @@ class AutoScalingPolicy(AutoScaling):
     AUTO SCALING POLICY
     """
 
-    def __init__(self, cloud, name='boto3-client-sdk', policy_type='TargetTrackingScaling', minimum=1, warmup=90,
-                 label='CPU 50', metric='ASGAverageCPUUtilization', metric_value=50):
+    def __init__(self, cloud, policy_type='TargetTrackingScaling',  estimated_instance_warmup=90,
+                 metric='ASGAverageCPUUtilization', metric_value=50):
         """
         Creates or updates a policy for an Auto Scaling group
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/autoscaling.html#AutoScaling.Client.put_scaling_policy
         """
         super().__init__(cloud.name)
-        target_tracking_config = {'PredefinedMetricSpecification': {'PredefinedMetricType': metric,
-                                                                    'ResourceLabel': label}}
+        config = {'PredefinedMetricSpecification': {'PredefinedMetricType': metric}, 'TargetValue': metric_value}
         try:
-            print('Create AutoScaling policy %s' % name)
-            self.autoscale.put_scaling_policy(AutoScalingGroupName=cloud.name, PolicyName=name,
-                                              PolicyType=policy_type, MinAdjustmentMagnitude=minimum,
-                                              EstimatedInstanceWarmup=warmup, TargetValue=metric_value,
-                                              TargetTrackingConfiguration=target_tracking_config)
+            print('Create AutoScaling policy %s' % cloud.name)
+            self.autoscale.put_scaling_policy(AutoScalingGroupName=cloud.name, PolicyName=cloud.name,
+                                              PolicyType=policy_type, EstimatedInstanceWarmup=estimated_instance_warmup,
+                                              TargetTrackingConfiguration=config)
         except ClientError as err:
             AutoScaling.handle(err)
         except Exception as err:
@@ -1445,7 +1444,8 @@ class AutoScalingNotification(AutoScaling):
         super().__init__(cloud.name)
         try:
             print('Create AutoScaling Notification %s' % cloud.name)
-            self.autoscale.put_notification_configuration(AutoScalingGroupName=cloud.name, NotificationTypes=notice_types,
+            self.autoscale.put_notification_configuration(AutoScalingGroupName=cloud.name,
+                                                          NotificationTypes=notice_types,
                                                           TopicARN=cloud.topic_arn)
         except ClientError as err:
             AutoScaling.handle(err)
@@ -1495,12 +1495,12 @@ class ElasticLoadBalancing(Compute):
     """
 
     def __init__(self, name, tag='boto3-client-sdk', region='eu-west-1', zone='eu-west-1a', key_pair='ec2_user',
-                 cidr4=None, sg=None, sn=None, ami_id='ami-0fad7378adf284ce0', ami_type='t2.micro',
-                 hibernate=True, user_data=None, dry=False):
+                 cidr4=None, ami_id='ami-0fad7378adf284ce0', ami_type='t2.micro', hibernate=True, user_data=None,
+                 dry=False):
         """
         Initialise data for ElasticLoadBalancing
         """
-        super().__init__(name, tag, region, zone, key_pair, cidr4, sg, sn, ami_id, ami_type, hibernate, user_data, dry)
+        super().__init__(name, tag, region, zone, key_pair, cidr4, ami_id, ami_type, hibernate, user_data, dry)
         self.elb = boto3.client('elbv2')
         self.response = None
 
