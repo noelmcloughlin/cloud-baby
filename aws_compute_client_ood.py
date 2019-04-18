@@ -115,7 +115,7 @@ def launch_aws(cloud):
                             #######################
                             # STANDARD EC2 INSTANCE
                             #######################
-                            if 'Compute' in str(type(cloud)) and cloud.sg_id == 'instance':
+                            if 'Compute' in str(type(cloud)) and cloud.sg_id and cloud.sg_id == 'instance':
                                 print('%s' % ('Startup EC2 Instance' if not cloud.dry else ''))
 
                                 resource = sdk.Instance(cloud, 1, 1)
@@ -142,7 +142,7 @@ def launch_aws(cloud):
             #######################
             # AUTO SCALING GROUP
             #######################
-            if 'AutoScaling' in str(type(cloud)) and cloud.sg_id not in ('instance', 'auto'):
+            if 'AutoScaling' in str(type(cloud)) and cloud.sg_id and cloud.sg_id not in ('instance', 'auto'):
                 print('%s' % ('Startup AutoScaling Instances' if not cloud.dry else ''))
 
                 if not cloud.dry:
@@ -191,9 +191,9 @@ def teardown_aws(cloud):
             ######################
             # AUTO SCALING GROUPS
             ######################
-            elif 'AutoScaling' in str(type(cloud)):
+            elif 'AutoScaling' in str(type(cloud)) and not cloud.dry:
 
-                print('%s' % ('Teardown AutoScaling ' if not cloud.dry else ''))
+                print('\nTeardown AutoScaling')
                 resources = sdk.AutoScalingGroup.list(cloud)
                 if resources and 'AutoScalingGroups' in resources and resources['AutoScalingGroups']:
                     for group in resources['AutoScalingGroups']:
@@ -218,28 +218,38 @@ def teardown_aws(cloud):
                         elif not cloud.dry:
                             print('No auto-scaling instances found')
 
-                    # AUTO SCALING GROUP TAGS
-                    resources = sdk.AutoScalingGroupTags.list(cloud)
-                    if resources and 'Tags' in resources and resources['Tags']:
-                        for policy in resources['Tags'][0]:
-                            cloud.name = policy['Key']
-                            cloud.tag = policy['Value']
-                            sdk.AutoScalingPolicy.delete(cloud)
-                    elif not cloud.dry:
-                        print('No auto-scaling group tags found')
+                        # AUTO SCALING GROUP TAGS
+                        resources = sdk.AutoScalingGroupTags.list(cloud)
+                        if resources and 'Tags' in resources and resources['Tags']:
+                            for policy in resources['Tags']:
+                                cloud.name = policy['Key']
+                                cloud.tag = policy['Value']
+                                sdk.AutoScalingGroupTags.delete(cloud)
+                        elif not cloud.dry:
+                            print('No auto-scaling group tags found')
 
-                    # AUTO SCALING POLICIES
-                    resources = sdk.AutoScalingPolicy.list(cloud)
-                    if resources and 'ScalingPolicies' in resources and resources['ScalingPolicies']:
-                        for policy in resources['ScalingPolicies']:
-                            sdk.AutoScalingPolicy.delete(cloud, policy['PolicyName'])
-                    elif not cloud.dry:
-                        print('No auto-scaling group policies found')
+                        # AUTO SCALING POLICIES
+                        resources = sdk.AutoScalingPolicy.list(cloud)
+                        if resources and 'ScalingPolicies' in resources and resources['ScalingPolicies']:
+                            for policy in resources['ScalingPolicies']:
+                                sdk.AutoScalingPolicy.delete(cloud, policy['ResourceId'])
+                        elif not cloud.dry:
+                            print('No auto-scaling policies found')
+
+                        # AUTO SCALE GROUPS
+                        resources = sdk.AutoScalingGroup.list(cloud)
+                        if resources and 'AutoScalingGroups' in resources and resources['AutoScalingGroups']:
+                            for instance in resources['AutoScalingGroups']:
+                                cloud.asg_name = instance['AutoScalingGroupName']
+                                sdk.AutoScalingGroup.delete(cloud)
+                        elif not cloud.dry:
+                            print('No auto-scaling groups found')
+
                 elif not cloud.dry:
                     print('No Auto Scaling Groups found')
 
-                # LAUNCH CONFIGURATION
-                resources = sdk.LaunchConfiguration.list(cloud, (cloud.name,))
+                # LAUNCH CONFIGURATIONS
+                resources = sdk.LaunchConfiguration.list(cloud)
                 if resources and 'LaunchConfigurations' in resources and resources['LaunchConfigurations']:
                     for configuration in resources['LaunchConfigurations']:
                         sdk.LaunchConfiguration.delete(cloud, configuration['LaunchConfigurationName'])
@@ -485,7 +495,7 @@ def main(argv):
     # interface
     if 'clean' in action:
         teardown_aws(sdk.SimpleNotificationService(name, tag, region, zone, key))
-        sg,sn = teardown_aws(sdk.Compute(name, tag, region, zone, key, cidr4))
+        sg, sn = teardown_aws(sdk.Compute(name, tag, region, zone, key, cidr4))
         teardown_aws(sdk.AutoScaling(name, tag, region, zone, key, cidr4, sg, sn))
 
     if 'start' in action:
@@ -493,7 +503,7 @@ def main(argv):
             launch_aws(sdk.Compute(name, tag, region, zone, key, cidr4, 'instance', None, ami_id, ami_type, sleep))
         elif mode == 'autoscaling':
             launch_aws(sdk.SimpleNotificationService(name, tag, region, zone, key))
-            sg,sn = launch_aws(sdk.Compute(name, tag, region, zone, key, cidr4, 'auto', None, ami_id, ami_type, sleep))
+            sg, sn = launch_aws(sdk.Compute(name, tag, region, zone, key, cidr4, 'auto', None, ami_id, ami_type, sleep))
             launch_aws(sdk.AutoScaling(name, tag, region, zone, key, cidr4, sg, sn, ami_id, ami_type))
 
 

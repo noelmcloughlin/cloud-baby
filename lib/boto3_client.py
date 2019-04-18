@@ -1206,14 +1206,14 @@ class LaunchConfiguration(AutoScaling):
             AutoScaling.fatal(err)
 
     @staticmethod
-    def list(self, launch_conf_names=None):
+    def list(self):
         """
         Get AutoScaling launch configurations by name (or filter if supported)
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/autoscaling.html#AutoScaling.Client.describe_launch_configurations
         """
         try:
-            if launch_conf_names:
-                return self.autoscale.describe_launch_configurations(LaunchConfigurationNames=launch_conf_names)
+            if self.name:
+                return self.autoscale.describe_launch_configurations(LaunchConfigurationNames=(self.name,))
             else:
                 return self.autoscale.describe_launch_configurations()
         except ClientError as err:
