@@ -8,11 +8,11 @@ import time
 import sys
 import os
 try:
-    sys.path.append(('./lib', './data'))
+    sys.path.append(('./aws', './data'))
     import boto3_client as aws
     import sitedata as data
 except ImportError:
-    sys.path.append(('../lib', '../data'))
+    sys.path.append(('../aws', '../data'))
     import boto3_client as aws
     import sitedata as data
 
