@@ -306,3 +306,21 @@ Teardown tagged secure ASG/EC2/ELB/SNS/VPC service with two zones/instances::
         Teardown VPC & Security 
         No VPCs found
 
+
+Teardown various stuff::
+        
+        $ ./aws_service_client_odd.py -a clean -w 'elb-autoscaling-vpc-sns'
+        
+        Teardown Simple Notification Service
+        Done
+        
+        Teardown Elastic Load Balancer
+        No Elastic Load Balancer found
+        
+        Teardown AutoScaling
+        No Auto Scaling Groups found
+        No Launch Configurations found
+        
+        Teardown VPC & Security 
+        No VPCs found
+
