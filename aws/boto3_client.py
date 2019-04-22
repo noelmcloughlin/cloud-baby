@@ -1,68 +1,43 @@
 #############################################
-# Copyright 2019 NoelMcloughlin
+# Copyright 2019 noelmcloughlin
 #############################################
 
 import boto3
 import time
 import base64
-import random
-import string
 from botocore.exceptions import ClientError
+import string
+import random
 
 
-class Compute:
+class Cloud:
     """
-    COMPUTE
+    A CLOUD
     """
-    def __init__(self, name='name', tag='tag', region='eu-west-1', zone='eu-west-1a', key_pair='ec2_user',
-                 cidr4=None, ami_id='ami-0fad7378adf284ce0', ami_type='t2.micro', hibernate=True, user_data=None,
-                 dry=False):
+    def __init__(self, data=None):
         """
-        Initialise data for Cloud Compute
+        Initialise data for Cloud
         """
-        self.client = boto3.client('ec2')
-        self.compute = boto3.resource('ec2', region)
-        self.token = ''.join([random.choice(string.ascii_letters + string.digits) for n in range(63)])
-        self.tag_specifications = [{'ResourceType': 'instance', 'Tags': [{'Key': name, 'Value': tag}]}]
-
-        self.name = name
-        self.tag = tag
-        self.region = region
-        self.zone = zone
-        self.key_pair = key_pair
-        self.cidr4 = cidr4
-        self.ami_id = ami_id
-        self.ami_type = ami_type
-        self.hibernate = hibernate
-        self.user_data = user_data or b'''
-#!/bin/bash
-yum update -y
-yum install -y httpd
-systemctl enable httpd && systemctl start httpd
-usermod -a -G apache ec2_user
-chown -R ec2_user:apache /var/www
-chmod 2775 /var/www
-find /var/www -type d -exec chmod 2775 {} \;
-find /var/www -type f -exec chmod 0664 {} \;
-echo "Create by AWS Boto3 SDK" >> /var/www/html/index.html
-'''
-        self.dry = dry
+        self.catalog = data['cloud']['catalog']
+        self.cidr4_vpc = data['cloud']['cidr4_vpc']
+        self.cidr4 = data['cloud']['cidr4']
+        self.cidr6_vpc = data['cloud']['cidr6_vpc']
+        self.cidr6 = data['cloud']['cidr6']
+        self.dry = data['cloud']['dry']
+        self.ipv4 = data['cloud']['ipv4']
+        self.ipv6 = data['cloud']['ipv6']
+        self.key_pair = data['cloud']['key_pair']
+        self.name = data['cloud']['name']
+        self.network_acls = data['cloud']['network_acls']
+        self.private_ip = data['cloud']['private_ip']
+        self.private_ips = data['cloud']['private_ips']
+        self.peer_region = data['cloud']['peer_region']
+        self.region = data['cloud']['region']
+        self.scope = data['cloud']['scope']
+        self.tag = data['cloud']['tag']
+        self.zone = data['cloud']['zone']
+        self.zones = data['cloud']['zones']
         self.response = None
-        self.instance_id = None
-
-    def create_tag(self, cloud, resource):
-        """
-        Adds or overwrite tag
-        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.create_tags
-        """
-        try:
-            print('Create tag %s = %s for %s %s' % (cloud.name, cloud.tag, resource,  ('(dry)' if cloud.dry else '')))
-            self.client.create_tags(Resources=(resource,), Tags=[{'Key': cloud.name, 'Value': cloud.tag}],
-                                    DryRun=cloud.dry)
-        except ClientError as err:
-            Compute.handle(err)
-        except Exception as err:
-            Compute.fatal(err)
 
     @staticmethod
     def handle(error=None, resource=None):
@@ -96,59 +71,190 @@ echo "Create by AWS Boto3 SDK" >> /var/www/html/index.html
         exit(1)
 
 
-# ************************************************ #
-# ***************** EC2 CLIENT ******************* #
-# ************************************************ #
+class Service(Cloud):
+    """
+    A SERVICE
+    """
+    def __init__(self, data=None):
+        """
+        Initialise data for MachineImage
+        """
+        super().__init__(data)
+        self.auto_ipv6 = data['service']['auto_ipv6']
+        self.ebs_optimized = data['service']['ebs_optimized']
+        self.min_count = data['service']['min_count']
+        self.max_count = data['service']['max_count']
+        self.monitor = data['service']['monitor']
+        self.public_ip = data['service']['public_ip']
+        self.template_id = data['service']['template_id']
+        self.tenancy = data['service']['tenancy']
+        self.token = ''.join(random.SystemRandom().choice(string.ascii_uppercase + string.digits) for _ in range(63))
 
-class LaunchTemplate(Compute):
+        self.acl_id = data['service']['acl_id']
+        self.acl_ids = data['service']['acl_ids']
+        self.sg_id = data['service']['sg_id']
+        self.sg_ids = data['service']['sg_ids']
+        self.subnet_id = data['service']['subnet_id']
+        self.subnet_ids = data['service']['subnet_ids']
+        self.template_ids = data['service']['template_ids']
+        self.topic_arn = data['service']['topic_arn']
+
+
+class Compute(Service):
+    """
+    COMPUTE
+    """
+    def __init__(self, data=None):
+        """
+        Create Compute with DATA and METHODS
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#instance
+        """
+        super().__init__(data)
+        self.eip_id = data['compute']['eip_id']
+        self.instance_id = data['compute']['instance_id']
+        self.igw_id = data['compute']['igw_id']
+        self.nat_gw_id = data['compute']['nat_gw_id']
+        self.peer_vpc_id = data['compute']['vpc_id']
+        self.rtt_id = data['compute']['rtt_id']
+        self.vpc_id = data['compute']['vpc_id']
+        self.eip_ids = data['compute']['eip_ids']
+        self.igw_ids = data['compute']['igw_ids']
+        self.instance_ids = data['compute']['instance_ids']
+        self.nat_gw_ids = data['compute']['nat_gw_ids']
+        self.rtt_ids = data['compute']['rtt_ids']
+
+        self.client = boto3.client('ec2')
+        self.compute = boto3.resource('ec2')
+
+    @staticmethod
+    def create_tag(self, resource):
+        """
+        Adds or overwrite tag
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.create_tags
+        """
+        try:
+            print('Create tag %s = %s for %s %s' % (self.name, self.tag, resource,  ('(dry)' if self.dry else '')))
+            self.client.create_tags(Resources=(resource,), Tags=[{'Key': self.name, 'Value': self.tag}],
+                                    DryRun=self.dry)
+        except ClientError as err:
+            Compute.handle(err)
+        except Exception as err:
+            Compute.fatal(err)
+
+# ***************************************** #
+# ***************** EC2 ******************* #
+# ***************************************** #
+
+
+class Image(Compute):
+    """
+    A IMAGE
+    """
+    def __init__(self, data=None):
+        """
+        Initialise data for MachineImage
+        """
+        super().__init__(data)
+        self.ami_id = data['image']['ami_id']
+        self.ami_type = data['image']['ami_type']
+        self.hibernate = data['image']['hibernate']
+        self.user_data = data['image']['user_data']
+
+
+class LaunchTemplate(Image):
     """
     LAUNCH TEMPLATES
     """
-    def __init__(self, cloud):
+    def __init__(self, data=None,):
         """
         Initialize and create Launch template
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.create_launch_template
+        # 'HibernationOptions': {'Configured': self.hibernate}  ## not supported by t2.micro
         """
-        super().__init__(cloud.name)
-        cloud.template_data = {
-            'EbsOptimized': False,
+        super().__init__(data)
+        self.template_data = {
+            'EbsOptimized': self.ebs_optimized,
             'BlockDeviceMappings': [],
-            'ImageId': cloud.ami_id,
-            'InstanceType': cloud.ami_type,
-            'KeyName': cloud.key_pair,
-            'Monitoring': {'Enabled': False},
-            'Placement': {'AvailabilityZone': cloud.zone},
+            'ImageId': self.ami_id,
+            'InstanceType': self.ami_type,
+            'KeyName': self.key_pair,
+            'Monitoring': {'Enabled': self.monitor},
             'InstanceInitiatedShutdownBehavior': 'stop',
-            'UserData': base64.b64encode(cloud.user_data).decode("ascii"),
-            'TagSpecifications': cloud.tag_specifications,
-            'SecurityGroupIds': (cloud.sg_id,),
-            # 'HibernationOptions': {'Configured': cloud.hibernate}  ## not supported by t2.micro
+            'UserData': base64.b64encode(self.user_data).decode("ascii"),
+            'TagSpecifications': [{'ResourceType': 'instance', 'Tags': [{'Key': self.name, 'Value': self.tag}]}],
+            'SecurityGroupIds': self.sg_ids
             }
 
         try:
-            print('Create launch_template %s' % ('(dry)' if cloud.dry else ''))
-            self.response = self.client.create_launch_template(LaunchTemplateName=cloud.name,
-                                                               VersionDescription=cloud.tag,
-                                                               LaunchTemplateData=cloud.template_data,
-                                                               ClientToken=cloud.token, DryRun=cloud.dry)
-            self.create_tag(cloud, self.response['LaunchTemplate']['LaunchTemplateId'])
+            print('Create launch_template %s' % ('(dry)' if self.dry else ''))
+            self.response = self.client.create_launch_template(LaunchTemplateName=self.name, ClientToken=self.token,
+                                                               VersionDescription=self.tag, DryRun=self.dry,
+                                                               LaunchTemplateData=self.template_data)
+            self.create_tag(self, self.response['LaunchTemplate']['LaunchTemplateId'])
         except ClientError as err:
             Compute.handle(err)
         except Exception as err:
             Compute.fatal(err)
 
     @staticmethod
-    def delete(self, template_id, name=None):
+    def delete(self):
         """
         Delete launch_template
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.delete_launch_template
         """
         try:
-            print('Delete launch_template %s %s' % ((template_id if template_id else ''), (name if name else ''))),
-            if template_id:
-                return self.client.delete_launch_template(LaunchTemplateId=template_id, DryRun=self.dry)
+            print('Delete launch_template %s %s' % (self.template_id, self.name))
+            return self.client.delete_launch_template(LaunchTemplateId=self.template_id, DryRun=self.dry)
+        except ClientError as err:
+            Compute.handle(err)
+
+    @staticmethod
+    def create_version(self, version=1, zone=None):
+        """
+        create_launch_template_version
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.create_launch_template_version
+        """
+        try:
+            self.version = str(version)
+            print('Create launch_template %s version %s' % (self.template_id, self.version))
+            if zone:
+                self.response = self.client.create_launch_template_version(LaunchTemplateId=self.template_id,
+                                                                           LaunchTemplateData={'Placement': {
+                                                                               'AvailabilityZone': zone}},
+                                                                           DryRun=self.dry)
             else:
-                return self.client.delete_launch_template(LaunchTemplateName=name, DryRun=self.dry)
+                self.response = self.client.create_launch_template_version(LaunchTemplateId=self.template_id,
+                                                                           DryRun=self.dry)
+            return self.response
+        except ClientError as err:
+            Compute.handle(err)
+        except Exception as err:
+            Compute.fatal(err)
+
+    @staticmethod
+    def delete_version(self, version=1):
+        """
+        Delete launch_template version
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.delete_launch_template_versions
+        """
+        try:
+            self.version = str(version)
+            print('Delete launch template %s version %s' % (self.template_id, self.version)),
+            return self.client.delete_launch_template_versions(LaunchTemplateId=self.template_id, DryRun=self.dry,
+                                                               Versions=[self.version])
+        except ClientError as err:
+            Compute.handle(err)
+        except Exception as err:
+            Compute.fatal(err)
+
+    @staticmethod
+    def list_versions(self):
+        """
+        List versions of a specified launch template
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.describe_launch_template_versions
+        """
+        try:
+            return self.client.describe_launch_template_versions(LaunchTemplateId=self.template_id, DryRun=self.dry)
         except ClientError as err:
             Compute.handle(err)
         except Exception as err:
@@ -169,27 +275,27 @@ class LaunchTemplate(Compute):
             Compute.fatal(err)
 
 
-class Instance(Compute):
+class Instance(Image):
     """
     INSTANCE
     """
 
-    def __init__(self, cloud, max_count=1, min_count=1):
+    def __init__(self, data=None, template_id=None, subnet_id=None, zone=None):
         """
         Initialize and Create Instance from Launch Template
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.ServiceResource.create_instances
         """
-        super().__init__(cloud.name)
-        cloud.max_count = max_count
-        cloud.min_count = min_count
+        super().__init__(data)
+        self.template_id = template_id
+        self.subnet_id = subnet_id
+        self.zone = zone
         try:
-            print('Create Instance from %s' % cloud.template_id)
-            self.response = cloud.compute.create_instances(LaunchTemplate={'LaunchTemplateId': cloud.template_id},
-                                                           SubnetId=cloud.subnet_id, SecurityGroupIds=(cloud.sg_id,),
-                                                           MaxCount=cloud.max_count, MinCount=cloud.min_count,
-                                                           Placement={'AvailabilityZone': cloud.zone},
-                                                           ClientToken=cloud.token)
-            self.create_tag(cloud, self.response[0].id)
+            self.response = self.compute.create_instances(LaunchTemplate={'LaunchTemplateId': self.template_id},
+                                                          SubnetId=self.subnet_id, SecurityGroupIds=self.sg_ids,
+                                                          MaxCount=self.max_count, MinCount=self.min_count,
+                                                          Placement={'AvailabilityZone': self.zone},
+                                                          ClientToken=self.token)
+            self.create_tag(self, self.response[0].id)
         except ClientError as err:
             Compute.handle(err)
         except Exception as err:
@@ -232,17 +338,17 @@ class Instance(Compute):
             Compute.fatal(err)
 
     @staticmethod
-    def list(self, name=None, value=None):
+    def list(self):
         """
         Get EC2 instances by searching for stuff
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.describe_instances
         """
+        states = ('pending', 'running', 'shutting-down', 'stopping', 'stopped')
         try:
-            if name and value:
-                return self.client.describe_instances(Filters=[{'Name': name, 'Values': (value,)}], DryRun=self.dry)
-            else:
-                return self.client.describe_instances(Filters=[{'Name': 'tag:' + self.name, 'Values': (self.tag,)}],
-                                                      DryRun=self.dry)
+            self.response = self.client.describe_instances(Filters=[{'Name': 'tag:' + self.name, 'Values': (self.tag,)},
+                                                                    {'Name': 'instance-state-name', 'Values': states}],
+                                                           DryRun=self.dry)
+            return self.response
         except ClientError as err:
             Compute.handle(err)
         except Exception as err:
@@ -254,19 +360,19 @@ class Volume(Compute):
     VOLUME
     """
 
-    def __init__(self, cloud, size=1, volume_type='standard', encrypted=False):
+    def __init__(self, data=None, zone=None, size=1, volume_type='standard', encrypted=False):
         """
         Create Volume instance
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.create_volume
         """
-        super().__init__(cloud.name)
+        super().__init__(data)
         try:
-            print('Creating Volume %s' % ('(dry)' if cloud.dry else ''))
-            self.response = self.client.create_volume(AvailabilityZone=cloud.zone,
-                                                      TagSpecifications=cloud.tag_specifications,
+            tag_specifications = [{'ResourceType': 'volume', 'Tags': [{'Key': self.name, 'Value': self.tag}]}]
+            print('Creating Volume %s' % ('(dry)' if self.dry else ''))
+            self.response = self.client.create_volume(AvailabilityZone=zone, TagSpecifications=tag_specifications,
                                                       Size=size, Encrypted=encrypted, VolumeType=volume_type,
-                                                      DryRun=cloud.dry)
-            self.create_tag(cloud, self.response['VolumeId'])
+                                                      DryRun=self.dry)
+            self.create_tag(self, self.response['VolumeId'])
         except ClientError as err:
             Compute.handle(err)
         except Exception as err:
@@ -305,32 +411,46 @@ class Vpc(Compute):
     """
     VIRTUAL PRIVATE CLOUD (VPC)
     """
-
-    def __init__(self, cloud, auto_ipv6=True, tenancy='default'):
+    def __init__(self, data=None):
         """
         Initialize and create Vpc
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.create_vpc
         """
-        super().__init__(cloud.name)
+        super().__init__(data)
         try:
-            print('%s %s' % ('Create VPC', cloud.name) if cloud.dry else '')
-            self.response = self.client.create_vpc(CidrBlock=cloud.cidr4, DryRun=cloud.dry,
-                                                   InstanceTenancy=tenancy, AmazonProvidedIpv6CidrBlock=auto_ipv6)
-            self.create_tag(cloud, self.response['Vpc']['VpcId'])
+            print('%s %s' % ('Create VPC', self.name) if not self.dry else '(dry)')
+            self.response = self.client.create_vpc(CidrBlock=self.cidr4_vpc[0], DryRun=self.dry,
+                                                   InstanceTenancy=self.tenancy,
+                                                   AmazonProvidedIpv6CidrBlock=self.auto_ipv6)
+            self.create_tag(self, self.response['Vpc']['VpcId'])
         except ClientError as err:
             Compute.handle(err, 'vpc')
         except Exception as err:
             Compute.fatal(err)
 
     @staticmethod
-    def delete(self, vpc_id):
+    def delete(self):
         """
-        Delete virtual priv cloud.
+        Delete virtual priv self.
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.delete_vpc
         """
         try:
-            print('Delete %s %s' % (vpc_id, ('(dry)' if self.dry else '')))
-            return self.client.delete_vpc(VpcId=vpc_id, DryRun=self.dry)
+            print('Delete %s %s' % (self.vpc_id, ('(dry)' if self.dry else '')))
+            return self.client.delete_vpc(VpcId=self.vpc_id, DryRun=self.dry)
+        except ClientError as err:
+            Compute.handle(err, 'vpc')
+        except Exception as err:
+            Compute.fatal(err)
+
+    @staticmethod
+    def associate_cidr(self, cidr4):
+        """
+        Associates a CIDR block with your VPC.
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.associate_vpc_cidr_block
+        """
+        try:
+            print('Associate %s with %s %s' % (cidr4, self.vpc_id, ('(dry)' if self.dry else '')))
+            return self.client.associate_vpc_cidr_block(CidrBlock=cidr4, VpcId=self.vpc_id)
         except ClientError as err:
             Compute.handle(err, 'vpc')
         except Exception as err:
@@ -356,20 +476,20 @@ class VpcEndpoint(Compute):
     VPC ENDPOINTS
     """
 
-    def __init__(self, cloud, endpoint_type=None, service=None):
+    def __init__(self, data=None, endpoint_type=None, service=None):
         """
         Initialize and create VpcEndPoint
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.create_vpc_endpoint
         """
-        super().__init__(cloud.name)
-        cloud.service = service or 'com.amazonaws.eu-west-1.ec2'
+        super().__init__(data)
+        self.service = service or 'com.amazonaws.' + self.region + '.ec2'
         try:
-            print('Create vpc-endpoint  %s' % ('(dry)' if cloud.dry else ''))
-            self.response = self.client.create_vpc_endpoint(VpcEndpointType=endpoint_type, VpcId=cloud.vpc_id,
-                                                            ServiceName=cloud.service, RouteTableIds=(cloud.rtt_id,),
-                                                            SubnetIds=(cloud.subnet_id,), DryRun=cloud.dry,
-                                                            SecurityGroupIds=(cloud.sg_id,), ClientToken=cloud.token)
-            self.create_tag(cloud, self.response['VpcEndpoint']['VpcEndpointId'])
+            print('Create vpc-endpoint  %s' % ('(dry)' if self.dry else ''))
+            self.response = self.client.create_vpc_endpoint(VpcEndpointType=endpoint_type, VpcId=self.vpc_id,
+                                                            ServiceName=self.name, RouteTableIds=self.rtt_ids,
+                                                            SubnetIds=self.subnet_ids, SecurityGroupIds=self.sg_ids,
+                                                            ClientToken=self.token, DryRun=self.dry)
+            self.create_tag(self, self.response['VpcEndpoint']['VpcEndpointId'])
         except ClientError as err:
             Compute.handle(err)
         except Exception as err:
@@ -412,17 +532,17 @@ class VpcPeeringConnection(Compute):
     VPC PEERING CONNECTION
     """
 
-    def __init__(self, cloud, peer_vpc_id=None, peer_region=None):
+    def __init__(self, data=None):
         """
         Initialize and create VpcPeeringConnection
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.create_vpc_peering_connection
         """
-        super().__init__(cloud.name)
+        super().__init__(data)
         try:
-            print('Create vpc_peering_connection  %s' % ('(dry)' if cloud.dry else ''))
-            self.response = self.client.create_vpc_peering_connection(VpcId=cloud.vpc_id, PeerVpcId=peer_vpc_id,
-                                                                      PeerRegion=peer_region, DryRun=cloud.dry)
-            self.create_tag(cloud, self.response['VpcPeeringConnection']['VpcPeeringConnectionId'])
+            print('Create vpc_peering_connection  %s' % ('(dry)' if self.dry else ''))
+            self.response = self.client.create_vpc_peering_connection(VpcId=self.vpc_id, PeerVpcId=self.peer_vpc_id,
+                                                                      PeerRegion=self.peer_region, DryRun=self.dry)
+            self.create_tag(self, self.response['VpcPeeringConnection']['VpcPeeringConnectionId'])
         except ClientError as err:
             Compute.handle(err)
         except Exception as err:
@@ -458,23 +578,23 @@ class VpcPeeringConnection(Compute):
             Compute.fatal(err)
     
     
-class NetworkInterface(Compute):
+class NetworkInterface(Compute,):
     """
     NETWORK INTERFACE
     """
 
-    def __init__(self, cloud, private_ip=None, private_ips=None):
+    def __init__(self, data=None, private_ip=None):
         """
         Initialize and create NetworkInterface
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.create_network_interface
         """
-        super().__init__(cloud.name)
+        super().__init__(data)
         try:
-            print('Create network_interface for %s %s' % (private_ip, ('(dry)' if cloud.dry else '')))
-            self.response = self.client.create_network_interface(Description=cloud.tag, Groups=(cloud.sg_id,),
-                                                                 SubnetId=cloud.subnet_id, PrivateIpAddress=private_ip,
-                                                                 PrivateIpAddresses=private_ips, DryRun=cloud.dry)
-            self.create_tag(cloud, self.response['NetworkInterface']['NetworkInterfaceId'])
+            print('Create network_interface for %s %s' % (private_ip, ('(dry)' if self.dry else '')))
+            self.response = self.client.create_network_interface(Description=self.tag, Groups=self.sg_ids,
+                                                                 SubnetId=self.subnet_id, PrivateIpAddress=private_ip,
+                                                                 PrivateIpAddresses=self.private_ips, DryRun=self.dry)
+            self.create_tag(self, self.response['NetworkInterface']['NetworkInterfaceId'])
         except ClientError as err:
             Compute.handle(err)
         except Exception as err:
@@ -501,8 +621,8 @@ class NetworkInterface(Compute):
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.describe_network_interfaces
         """
         try:
-            return self.client.describe_network_interfaces(Filters=[{'Name': 'tag:' + self.name,
-                                                                     'Values': (self.tag,)}], DryRun=self.dry)
+            return self.client.describe_network_interfaces(Filters=[{'Name': self.name, 'Values': (self.tag,)}],
+                                                           DryRun=self.dry)
         except ClientError as err:
             Compute.handle(err)
         except Exception as err:
@@ -514,17 +634,17 @@ class Subnet(Compute):
     SUBNET
     """
 
-    def __init__(self, cloud):
+    def __init__(self, data=None, cidr_block=None, zone=None):
         """
         Initialize and create Subnet
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.create_subnet
         """
-        super().__init__(cloud.name)
+        super().__init__(data)
         try:
-            print('Create subnet for %s %s' % (cloud.cidr4, ('(dry)' if cloud.dry else '')))
-            self.response = self.client.create_subnet(AvailabilityZone=cloud.zone, CidrBlock=cloud.cidr4,
-                                                      VpcId=cloud.vpc_id, DryRun=cloud.dry)
-            self.create_tag(cloud, self.response['Subnet']['SubnetId'])
+            print('Create subnet for %s %s' % (cidr_block, ('(dry)' if self.dry else '')))
+            self.response = self.client.create_subnet(AvailabilityZone=zone, CidrBlock=cidr_block, VpcId=self.vpc_id,
+                                                      DryRun=self.dry)
+            self.create_tag(self, self.response['Subnet']['SubnetId'])
         except ClientError as err:
             Compute.handle(err)
         except Exception as err:
@@ -583,33 +703,33 @@ class SecurityGroup(Compute):
     SECURITY GROUPS
     """
 
-    def __init__(self, cloud, description=None):
+    def __init__(self, data=None, description='Boto3'):
         """
         Initialize and Create Security Group
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.create_security_group
         """
-        super().__init__(cloud.name)
+        super().__init__(data)
         try:
             if not description:
                 description = self.tag
-            print('Create security group %s' % ('(dry)' if cloud.dry else ''))
-            self.response = self.client.create_security_group(Description=description, GroupName=cloud.name,
-                                                              VpcId=cloud.vpc_id, DryRun=cloud.dry)
-            self.create_tag(cloud, self.response['GroupId'])
+            print('Create security group %s' % ('(dry)' if self.dry else ''))
+            self.response = self.client.create_security_group(Description=description, GroupName=self.name,
+                                                              VpcId=self.vpc_id, DryRun=self.dry)
+            self.create_tag(self, self.response['GroupId'])
         except ClientError as err:
             Compute.handle(err)
         except Exception as err:
             Compute.fatal(err)
 
     @staticmethod
-    def delete(self, sg_id):
+    def delete(self):
         """
         Delete a security group.
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.delete_security_group
         """
         try:
-            print('Delete %s %s' % (sg_id, ('(dry)' if self.dry else '')))
-            return self.client.delete_security_group(GroupId=sg_id, DryRun=self.dry)
+            print('Delete %s %s' % (self.sg_id, ('(dry)' if self.dry else '')))
+            return self.client.delete_security_group(GroupId=self.sg_id, DryRun=self.dry)
         except ClientError as err:
             Compute.handle(err)
         except Exception as err:
@@ -634,84 +754,128 @@ class SecurityGroup(Compute):
             Compute.fatal(err)
 
     @staticmethod
-    def list_refs(self, group_ids):
+    def list_refs(self, sg_id):
         """
         Get Security Groups references
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.describe_security_group_references
         """
         try:
-            return self.client.describe_security_group_references(GroupId=group_ids, DryRun=self.dry)
+            return self.client.describe_security_group_references(GroupId=(sg_id,), DryRun=self.dry)
         except ClientError as err:
             Compute.handle(err)
         except Exception as err:
             Compute.fatal(err)
 
     @staticmethod
-    def auth_egress(self, from_port, to_port, proto, ipv4, ipv6=({'CidrIpv6', '::/0'},)):
+    def auth_egress(self, f_port, t_port, proto, ip4=None, ip6=None):
         """
         Adds egress rules to a security group.
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.authorize_security_group_egress
         """
         try:
             print('Authorize sg egress %s %s' % (self.sg_id, ('(dry)' if self.dry else '')))
-            return self.client.authorize_security_group_egress(IpPermissions=[{'FromPort': from_port, 'ToPort': to_port,
-                                                                               'IpProtocol': proto, 'IpRanges': ipv4,
-                                                                               'Ipv6Ranges': ipv6}],
-                                                               GroupId=self.sg_id, DryRun=self.dry)
+            if ip4 and ip6:
+                return self.client.authorize_security_group_egress(IpPermissions=[{'FromPort': f_port,
+                                                                                   'ToPort': t_port,
+                                                                                   'IpProtocol': proto,
+                                                                                   'IpRanges': ip4,
+                                                                                   'Ipv6Ranges': ip6}],
+                                                                   GroupId=self.sg_id, DryRun=self.dry)
+            elif ip4:
+                return self.client.authorize_security_group_egress(IpPermissions=[{'FromPort': f_port,
+                                                                                   'ToPort': t_port,
+                                                                                   'IpProtocol': proto,
+                                                                                   'IpRanges': ip4}],
+                                                                   GroupId=self.sg_id, DryRun=self.dry)
+            elif ip6:
+                return self.client.authorize_security_group_egress(IpPermissions=[{'FromPort': f_port,
+                                                                                   'ToPort': t_port,
+                                                                                   'Ipv6Ranges': ip6}],
+                                                                   GroupId=self.sg_id, DryRun=self.dry)
         except ClientError as err:
             Compute.handle(err)
         except Exception as err:
             Compute.fatal(err)
 
     @staticmethod
-    def auth_ingress(self, from_port, to_port, proto, ipv4, ipv6=({'CidrIpv6', '::/0'},)):
+    def auth_ingress(self, f_port, t_port, proto, ip4=None, ip6=None):
         """
         Adds ingress rules to a security group.
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.authorize_security_group_ingress
         """
         try:
             print('Authorize sg ingress %s %s' % (self.sg_id, ('(dry)' if self.dry else '')))
-            return self.client.authorize_security_group_ingress(IpPermissions=[{'FromPort': from_port,
-                                                                                'ToPort': to_port,
-                                                                                'IpProtocol': proto,
-                                                                                'IpRanges': ipv4,
-                                                                                'Ipv6Ranges': ipv6}],
-                                                                GroupId=self.sg_id, DryRun=self.dry)
+            if ip4 and ip6:
+                return self.client.authorize_security_group_ingress(IpPermissions=[{'FromPort': f_port,
+                                                                                    'ToPort': t_port,
+                                                                                    'IpProtocol': proto,
+                                                                                    'IpRanges': ip4,
+                                                                                    'Ipv6Ranges': ip6}],
+                                                                    GroupId=self.sg_id, DryRun=self.dry)
+            elif ip4:
+                return self.client.authorize_security_group_ingress(IpPermissions=[{'FromPort': f_port,
+                                                                                    'ToPort': t_port,
+                                                                                    'IpProtocol': proto,
+                                                                                    'IpRanges': ip4}],
+                                                                    GroupId=self.sg_id, DryRun=self.dry)
+            elif ip6:
+                return self.client.authorize_security_group_ingress(IpPermissions=[{'FromPort': f_port,
+                                                                                    'ToPort': t_port,
+                                                                                    'Ipv6Ranges': ip6}],
+                                                                    GroupId=self.sg_id, DryRun=self.dry)
         except ClientError as err:
             Compute.handle(err)
         except Exception as err:
             Compute.fatal(err)
 
     @staticmethod
-    def revoke_egress(self, from_port, to_port, proto, ipv4, ipv6=({'CidrIpv6', '::/0'},)):
+    def revoke_egress(self, f_port, t_port, proto, ip4=None, ip6=None):
         """
         Revoke egress rules from a security group.
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.revoke_security_group_egress
         """
         try:
             print('Revoke sg egress %s %s' % (self.sg_id, ('(dry)' if self.dry else '')))
-            return self.client.revoke_security_group_egress(IpPermissions=[{'FromPort': from_port, 'ToPort': to_port,
-                                                                            'IpProtocol': proto, 'IpRanges': ipv4,
-                                                                            'Ipv6Ranges': ipv6}],
-                                                            GroupId=self.sg_id, DryRun=self.dry)
+            if ip4 and ip6:
+                return self.client.revoke_security_group_egress(IpPermissions=[{'FromPort': f_port, 'ToPort': t_port,
+                                                                                'IpProtocol': proto, 'IpRanges': ip4,
+                                                                                'Ipv6Ranges': ip6}],
+                                                                GroupId=self.sg_id, DryRun=self.dry)
+            elif ip4:
+                return self.client.revoke_security_group_egress(IpPermissions=[{'FromPort': f_port, 'ToPort': t_port,
+                                                                                'IpProtocol': proto, 'IpRanges': ip4}],
+                                                                GroupId=self.sg_id, DryRun=self.dry)
+            elif ip6:
+                return self.client.revoke_security_group_egress(IpPermissions=[{'FromPort': f_port, 'ToPort': t_port,
+                                                                                'Ipv6Ranges': ip6}],
+                                                                GroupId=self.sg_id, DryRun=self.dry)
+
         except ClientError as err:
             Compute.handle(err)
         except Exception as err:
             Compute.fatal(err)
 
     @staticmethod
-    def revoke_ingress(self, from_port, to_port, proto, ipv4, ipv6=({'CidrIpv6', '::/0'},)):
+    def revoke_ingress(self, f_port, t_port, proto, ip4=None, ip6=None):
         """
         Remove ingress rules to a security group.
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.revoke_security_group_ingress
         """
         try:
             print('Revoke sg ingress from %s %s' % (self.sg_id, ('(dry)' if self.dry else '')))
-            return self.client.revoke_security_group_ingress(IpPermissions=[{'FromPort': from_port, 'ToPort': to_port,
-                                                                             'IpProtocol': proto,
-                                                                             'IpRanges': ipv4,
-                                                                             'Ipv6Ranges': ipv6}],
-                                                             GroupId=self.sg_id, DryRun=self.dry)
+            if ip4 and ip6:
+                return self.client.revoke_security_group_ingress(IpPermissions=[{'FromPort': f_port, 'ToPort': t_port,
+                                                                                 'IpProtocol': proto, 'IpRanges': ip4,
+                                                                                 'Ipv6Ranges': ip6}],
+                                                                 GroupId=self.sg_id, DryRun=self.dry)
+            elif ip4:
+                return self.client.revoke_security_group_ingress(IpPermissions=[{'FromPort': f_port, 'ToPort': t_port,
+                                                                                 'IpProtocol': proto, 'IpRanges': ip4}],
+                                                                 GroupId=self.sg_id, DryRun=self.dry)
+            elif ip6:
+                return self.client.revoke_security_group_ingress(IpPermissions=[{'FromPort': f_port, 'ToPort': t_port,
+                                                                                 'Ipv6Ranges': ip6}],
+                                                                 GroupId=self.sg_id, DryRun=self.dry)
         except ClientError as err:
             Compute.handle(err)
         except Exception as err:
@@ -723,17 +887,17 @@ class NatGateway(Compute):
     NAT GATEWAY
     """
 
-    def __init__(self, cloud):
+    def __init__(self, data=None):
         """
         Initialize and Create NAT Gateway
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.create_nat_gateway
         """
-        super().__init__(cloud.name)
+        super().__init__(data)
         try:
-            print('Create nat gateway for subnet %s %s' % (cloud.subnet_id, ('(dry)' if cloud.dry else '')))
-            self.response = self.client.create_nat_gateway(ClientToken=cloud.token, AllocationId=cloud.eip_alloc_id,
-                                                           SubnetId=cloud.subnet_id, DryRun=cloud.dry)
-            self.create_tag(cloud, self.response['NatGateway']['NatGatewayId'])
+            print('Create nat gateway for subnet %s %s' % (self.subnet_id, ('(dry)' if self.dry else '')))
+            self.response = self.client.create_nat_gateway(ClientToken=self.token, AllocationId=self.eip_id,
+                                                           SubnetId=self.subnet_id, DryRun=self.dry)
+            self.create_tag(self, self.response['NatGateway']['NatGatewayId'])
         except ClientError as err:
             Compute.handle(err)
         except Exception as err:
@@ -773,16 +937,16 @@ class RouteTable(Compute):
     ROUTE TABLE
     """
 
-    def __init__(self, cloud):
+    def __init__(self, data=None):
         """
         Initialize and Create Route Table
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.create_route_table
         """
-        super().__init__(cloud.name)
+        super().__init__(data)
         try:
-            print('Create route table for %s %s' % (cloud.vpc_id, ('(dry)' if cloud.dry else '')))
-            self.response = self.client.create_route_table(VpcId=cloud.vpc_id, DryRun=cloud.dry)
-            self.create_tag(cloud, self.response['RouteTable']['RouteTableId'])
+            print('Create route table for %s %s' % (self.vpc_id, ('(dry)' if self.dry else '')))
+            self.response = self.client.create_route_table(VpcId=self.vpc_id, DryRun=self.dry)
+            self.create_tag(self, self.response['RouteTable']['RouteTableId'])
         except ClientError as err:
             Compute.handle(err)
         except Exception as err:
@@ -836,14 +1000,14 @@ class RouteTable(Compute):
             Compute.fatal(err)
 
     @staticmethod
-    def associate(self):
+    def associate(self, subnet_id):
         """
         Associate route table with subnet
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.associate_route_table
         """
         try:
-            print('Associate route table %s to %s %s' % (self.rtt_id, self.subnet_id, ('(dry)' if self.dry else '')))
-            return self.client.associate_route_table(RouteTableId=self.rtt_id, SubnetId=self.subnet_id, DryRun=self.dry)
+            print('Associate route table %s to %s %s' % (self.rtt_id, subnet_id, ('(dry)' if self.dry else '')))
+            return self.client.associate_route_table(RouteTableId=self.rtt_id, SubnetId=subnet_id, DryRun=self.dry)
         except ClientError as err:
             Compute.handle(err)
         except Exception as err:
@@ -886,16 +1050,16 @@ class NetworkAcl(Compute):
     NETWORK ACL
     """
 
-    def __init__(self, cloud):
+    def __init__(self, data=None):
         """
         Initialize and Create Network ACL
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.create_network_acl
         """
-        super().__init__(cloud.name)
+        super().__init__(data)
         try:
-            print('Create network acl for %s %s' % (cloud.vpc_id, ('(dry)' if cloud.dry else '')))
-            self.response = self.client.create_network_acl(VpcId=cloud.vpc_id, DryRun=cloud.dry)
-            self.create_tag(cloud, self.response['NetworkAcl']['NetworkAclId'])
+            print('Create network acl for %s %s' % (self.vpc_id, ('(dry)' if self.dry else '')))
+            self.response = self.client.create_network_acl(VpcId=self.vpc_id, DryRun=self.dry)
+            self.create_tag(self, self.response['NetworkAcl']['NetworkAclId'])
         except ClientError as err:
             Compute.handle(err)
         except Exception as err:
@@ -916,37 +1080,37 @@ class NetworkAcl(Compute):
             Compute.fatal(err)
 
     @staticmethod
-    def replace_association(self, network_acl_id, association_id):
+    def replace_association(self, association_id):
         """
         Replace network acl association
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.replace_network_acl_association
         """
         try:
-            print('Replace network association %s %s' % (network_acl_id, ('(dry)' if self.dry else '')))
+            print('Replace network association %s %s' % (self.acl_id, ('(dry)' if self.dry else '')))
             return self.client.replace_network_acl_association(AssociationId=association_id,
-                                                               NetworkAclId=network_acl_id, DryRun=self.dry)
+                                                               NetworkAclId=self.acl_id, DryRun=self.dry)
         except ClientError as err:
             Compute.handle(err)
         except Exception as err:
             Compute.fatal(err)
 
     @staticmethod
-    def create_entry(self, rule_num, action, from_port, to_port, proto='6', egress=False):
+    def create_entry(self, cidr4, rule_num, action, f_port, t_port, proto='6', egress=False):
         """
         Create network acl entry
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.create_network_acl_entry
         """
         try:
-            print('Create network acl entry for %s %s' % (self.acl_id, '(dry)' if self.dry else ''))
-            if from_port and to_port:
-                return self.client.create_network_acl_entry(CidrBlock=self.cidr4, Egress=egress, Protocol=proto,
+            print('Create network acl entry for %s %s %s' % (self.acl_id, cidr4, '(dry)' if self.dry else ''))
+            if f_port and t_port:
+                return self.client.create_network_acl_entry(CidrBlock=cidr4, Egress=egress, Protocol=proto,
                                                             RuleAction=action, NetworkAclId=self.acl_id,
-                                                            PortRange={'From': from_port, 'To': to_port},
+                                                            PortRange={'From': f_port, 'To': t_port},
                                                             RuleNumber=rule_num, DryRun=self.dry)
             else:
-                return self.client.create_network_acl_entry(CidrBlock=self.cidr4, Egress=egress, Protocol=proto,
+                return self.client.create_network_acl_entry(CidrBlock=cidr4, Egress=egress, Protocol=proto,
                                                             RuleAction=action, NetworkAclId=self.acl_id,
-                                                            PortRange={'From': from_port, 'To': to_port},
+                                                            PortRange={'From': f_port, 'To': t_port},
                                                             RuleNumber=rule_num, DryRun=self.dry)
         except ClientError as err:
             Compute.handle(err)
@@ -960,7 +1124,7 @@ class NetworkAcl(Compute):
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.delete_network_acl_entry
         """
         try:
-            print('Delete %s %s' % (network_acl_id, ('(dry)' if self.dry else '')))
+            print('Delete entry for %s %s' % (network_acl_id, ('(dry)' if self.dry else '')))
             return self.client.delete_network_acl_entry(Egress=egress, NetworkAclId=network_acl_id, RuleNumber=num,
                                                         DryRun=self.dry)
         except ClientError as err:
@@ -988,32 +1152,31 @@ class ElasticIp(Compute):
     ELASTIC IP
     """
 
-    def __init__(self, cloud, domain):
+    def __init__(self, data=None, domain='vpc'):
         """
         Initialize and Create Elastic IP
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.allocate_address
         """
-        super().__init__(cloud.name)
+        super().__init__(data)
         try:
-            self.response = self.client.allocate_address(Domain=domain, DryRun=cloud.dry)
-            self.create_tag(cloud, self.response['AllocationId'])
+            self.response = self.client.allocate_address(Domain=domain, DryRun=self.dry)
+            self.create_tag(self, self.response['AllocationId'])
             print('Created elastic ip %s for %s %s' % (self.response['AllocationId'], domain,
-                                                       ('(dry)' if cloud.dry else '')))
+                                                       ('(dry)' if self.dry else '')))
         except ClientError as err:
             Compute.handle(err)
         except Exception as err:
             Compute.fatal(err)
 
     @staticmethod
-    def associate(self):
+    def associate(self, eip_id):
         """
         Associate elastic ip with ec2_instance
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.associate_address
         """
         try:
-            print('Associate elastic ip %s with %s %s' % (self.eip_alloc_id, self.instance_id,
-                                                          '(dry)' if self.dry else ''))
-            return self.client.associate_address(AllocationId=self.eip_alloc_id, InstanceId=self.instance_id,
+            print('Associate elastic ip %s with %s %s' % (eip_id, self.instance_id, '(dry)' if self.dry else ''))
+            return self.client.associate_address(AllocationId=eip_id, InstanceId=self.instance_id,
                                                  DryRun=self.dry)
         except ClientError as err:
             Compute.handle(err)
@@ -1035,14 +1198,14 @@ class ElasticIp(Compute):
             Compute.fatal(err)
 
     @staticmethod
-    def release(self, eip_alloc_id):
+    def release(self, eip_id):
         """
         Delete a elastic ip.
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.release_address
         """
         try:
-            print('Release %s %s' % (eip_alloc_id, ('(dry)' if self.dry else '')))
-            return self.client.release_address(AllocationId=eip_alloc_id, DryRun=self.dry)
+            print('Release %s %s' % (eip_id, ('(dry)' if self.dry else '')))
+            return self.client.release_address(AllocationId=eip_id, DryRun=self.dry)
         except ClientError as err:
             Compute.handle(err)
         except Exception as err:
@@ -1068,16 +1231,16 @@ class InternetGateway(Compute):
     INTERNET GATEWAY
     """
 
-    def __init__(self, cloud):
+    def __init__(self, data=None):
         """
         Initialize and Create Internet Gateway
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.create_internet_gateway
         """
-        super().__init__(cloud.name)
+        super().__init__(data)
         try:
-            print('Create internet gateway %s' % ('(dry)' if cloud.dry else ''))
-            self.response = self.client.create_internet_gateway(DryRun=cloud.dry)
-            self.create_tag(cloud, self.response['InternetGateway']['InternetGatewayId'])
+            print('Create internet gateway %s' % ('(dry)' if self.dry else ''))
+            self.response = self.client.create_internet_gateway(DryRun=self.dry)
+            self.create_tag(self, self.response['InternetGateway']['InternetGatewayId'])
         except ClientError as err:
             Compute.handle(err)
         except Exception as err:
@@ -1146,58 +1309,205 @@ class InternetGateway(Compute):
 
 
 # ********************************************************* #
+# *********** ELASTIC LOAD BALANCING (ELB) **************** #
+# ********************************************************* #
+
+class ElasticLoadBalancing(Service):
+    """
+    ELASTIC LOAD BALANCING v2
+    https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/elbv2.html
+    """
+
+    def __init__(self, data=None):
+        """
+        Initialise data for ElasticLoadBalancing
+        """
+        super().__init__(data)
+        self.lb_arn = data['elb']['lb_arn']
+        self.lb_arns = data['elb']['lb_arns']
+        self.ip_version = data['elb']['ip_version']
+        self.lb_type = data['elb']['lb_type']
+        self.scheme = data['elb']['scheme']
+        self.elb = boto3.client('elbv2')
+
+
+class LoadBalancer(ElasticLoadBalancing):
+    """
+    LOAD BALANCER
+    """
+
+    def __init__(self, data=None):
+        """
+        Initialize and Create Elastic Load Balancerv2
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/elbv2.html#ElasticLoadBalancingv2.Client.create_load_balancer
+        """
+        super().__init__(data)
+        try:
+            print('Create Elastic Load Balancer: %s' % self.name)
+            self.response = self.elb.create_load_balancer(Name=self.name, Tags=[{'Key': self.tag, 'Value': self.tag}],
+                                                          IpAddressType=self.ip_version, Type=self.lb_type,
+                                                          Scheme=self.scheme, Subnets=self.subnet_ids,
+                                                          SecurityGroups=self.sg_ids)
+        except ClientError as err:
+            ElasticLoadBalancing.handle(err)
+        except Exception as err:
+            ElasticLoadBalancing.fatal(err)
+
+    @staticmethod
+    def delete(self):
+        """
+        Delete Elastic Load Balancer
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/elbv2.html#ElasticLoadBalancingv2.Client.delete_load_balancer
+        """
+        try:
+            print('Delete Elastic Load Balancer %s' % self.lb_arn)
+            self.elb.delete_load_balancer(LoadBalancerArn=self.lb_arn)
+        except ClientError as err:
+            ElasticLoadBalancing.handle(err)
+        except Exception as err:
+            ElasticLoadBalancing.fatal(err)
+
+    @staticmethod
+    def list(self):
+        """
+        Get Elastic Load Balancer groups by filtering
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/elbv2.html#ElasticLoadBalancingv2.Client.describe_load_balancers
+        """
+        try:
+            if self.lb_arn:
+                return self.elb.describe_load_balancers(LoadBalancerArns=(self.lb_arn,))
+            else:
+                return self.elb.describe_load_balancers(Names=(self.name,))
+        except ClientError as err:
+            ElasticLoadBalancing.handle(err)
+        except Exception as err:
+            ElasticLoadBalancing.fatal(err)
+
+
+# ********************************************************* #
+# ********* SIMPLE NOTIFICATION SERVICE CLIENT ************ #
+# ********************************************************* #
+
+
+class SimpleNotificationService(Service):
+    """
+    SIMPLE NOTIFICATION SERVICE (SNS)
+    """
+
+    def __init__(self, data=None):
+        """
+        Initialise data for Simple Notifications
+        """
+        super().__init__(data)
+        self.sns = boto3.client('sns')
+
+
+class SimpleNotificationServiceTopic(SimpleNotificationService):
+    """
+    SNS TOPIC
+    """
+    def __init__(self, data=None):
+        """
+        Creates a topic to which notifications can be published
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/sns.html#SNS.Client.create_topic
+        """
+        super().__init__(data)
+        try:
+            print('Create SNS topic  %s' % self.name)
+            self.response = self.sns.create_topic(Name=self.name)
+            self.topic_arn = self.response['TopicArn']
+        except ClientError as err:
+            Compute.handle(err)
+        except Exception as err:
+            Compute.fatal(err)
+
+    @staticmethod
+    def delete(self):
+        """
+        Delete SNS topic
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/sns.html#SNS.Client.delete_topic
+        """
+        try:
+            print('Delete SNS topic %s %s' % (self.topic_arn, ('(dry)' if self.dry else '')))
+            return self.sns.delete_topic(TopicArn=self.topic_arn)
+        except ClientError as err:
+            Compute.handle(err)
+        except Exception as err:
+            Compute.fatal(err)
+
+    @staticmethod
+    def list(self):
+        """
+        Get (requester) SNS topics
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/sns.html#SNS.Client.list_topics
+        """
+        try:
+            return self.sns.list_topics()
+        except ClientError as err:
+            Compute.handle(err)
+        except Exception as err:
+            Compute.fatal(err)
+
+# ********************************************************* #
 # ***************** AUTO-SCALING CLIENT ******************* #
 # ********************************************************* #
 
 
-class AutoScaling(Compute):
+class AutoScaling(Service):
     """
     AUTO-SCALING
     """
-    def __init__(self, name, tag='boto3-client-sdk', region='eu-west-1', zone='eu-west-1a', key_pair='ec2_user',
-                 cidr4=None, ami_id='ami-0fad7378adf284ce0', ami_type='t2.micro', hibernate=True, user_data=None,
-                 dry=False):
+    def __init__(self, data):
         """
         Initialise data for AutoScaling
         """
-        super().__init__(name, tag, region, zone, key_pair, cidr4, ami_id, ami_type, hibernate, user_data, dry)
+        super().__init__(data)
+        self.asg_name = data['autoscaling']['asg_name']
+        self.desired_capacity = data['autoscaling']['desired_capacity']
+        self.hc_type = data['autoscaling']['hc_type']
+        self.resource = data['autoscaling']['resource']
+        self.notice_types = data['autoscaling']['notice_types']
+        self.policy_type = data['autoscaling']['policy_type']
+        self.est_warmup = data['autoscaling']['est_warmup']
+        self.metric = data['autoscaling']['metric']
+        self.metric_value = data['autoscaling']['metric_value']
+        self.force_delete = data['autoscaling']['force_delete']
         self.autoscale = boto3.client('autoscaling')
 
 
-class LaunchConfiguration(AutoScaling):
+class LaunchConfiguration(AutoScaling, Image):
     """
     LAUNCH CONFIGURATION
     """
-    def __init__(self, cloud, public_ip=True, iam_profile='', monitor=False, ebs_optimized=False, tenancy='default'):
+    def __init__(self, data):
         """
         Initialize and create Launch configuration
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/autoscaling.html#AutoScaling.Client.create_launch_configuration
         """
-        super().__init__(cloud.name)
+        super().__init__(data)
         try:
-            if not cloud.dry:
-                print('Create launch_configuration %s' % cloud.name)
-                self.autoscale.create_launch_configuration(LaunchConfigurationName=cloud.name, ImageId=cloud.ami_id,
-                                                           EbsOptimized=ebs_optimized, UserData=cloud.user_data,
-                                                           InstanceType=cloud.ami_type, KeyName=cloud.key_pair,
-                                                           InstanceMonitoring={'Enabled': monitor},
-                                                           AssociatePublicIpAddress=public_ip,
-                                                           SecurityGroups=(cloud.sg_id,),
-                                                           PlacementTenancy=tenancy)
+            if not self.dry:
+                print('Create launch_configuration %s' % self.name)
+                self.autoscale.create_launch_configuration(LaunchConfigurationName=self.name, ImageId=self.ami_id,
+                                                           PlacementTenancy=self.tenancy, SecurityGroups=self.sg_ids,
+                                                           EbsOptimized=self.ebs_optimized, UserData=self.user_data,
+                                                           InstanceType=self.ami_type, KeyName=self.key_pair,
+                                                           InstanceMonitoring={'Enabled': self.monitor},
+                                                           AssociatePublicIpAddress=self.public_ip)
         except ClientError as err:
             AutoScaling.handle(err)
         except Exception as err:
             AutoScaling.fatal(err)
 
     @staticmethod
-    def delete(self, launch_conf_name):
+    def delete(self, launch_configuration_name=None):
         """
         Delete launch_configuration
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/autoscaling.html#AutoScaling.Client.delete_launch_configuration
         """
         try:
-            print('Delete launch_configuration %s' % launch_conf_name)
-            self.autoscale.delete_launch_configuration(LaunchConfigurationName=launch_conf_name)
+            print('Delete launch_configuration %s' % self.name)
+            self.autoscale.delete_launch_configuration(LaunchConfigurationName=launch_configuration_name)
         except ClientError as err:
             AutoScaling.handle(err)
         except Exception as err:
@@ -1220,58 +1530,43 @@ class LaunchConfiguration(AutoScaling):
             AutoScaling.fatal(err)
 
 
-class AutoScalingGroup(AutoScaling):
+class AutoScalingGroup(LaunchConfiguration, ElasticLoadBalancing):
     """
     AUTO SCALING GROUP
     """
 
-    def __init__(self, cloud, min_size=1, max_size=1, desired_capacity=1, health_check_type='EC2', lb_names=None):
+    def __init__(self, data=None):
         """
         Initialize and Create AutoScaling from Launch Configuration
         https://docs.aws.amazon.com/autoscaling/ec2/userguide/create-launch-template.html
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/autoscaling.html#AutoScaling.Client.create_auto_scaling_group
         """
-        super().__init__(cloud.name)
+        super().__init__(data)
         try:
-            if cloud.name:   # always true I guess
-                print('Create AutoScaling group: %s' % cloud.name)
-                self.response = self.autoscale.create_auto_scaling_group(AutoScalingGroupName=cloud.name,
-                                                                         LaunchConfigurationName=cloud.name,
-                                                                         Tags=[{'Key': cloud.tag, 'Value': cloud.tag}],
-                                                                         VPCZoneIdentifier=cloud.subnet_id,
-                                                                         MinSize=min_size, MaxSize=max_size,
-                                                                         HealthCheckType=health_check_type,
-                                                                         DesiredCapacity=desired_capacity,
-                                                                         AvailabilityZones=(cloud.zone,))
-            elif cloud.launch_template_id:
-                print('Create AutoScaling group: %s' % cloud.launch_template_id)
-                self.response = self.autoscale.create_auto_scaling_group(AutoScalingGroupName=cloud.name,
-                                                                         Tags=[{'Key': cloud.name, 'Value': cloud.tag}],
-                                                                         LaunchTemplate={'LaunchTemplateId':
-                                                                                         cloud.launch_template_id},
-                                                                         VPCZoneIdentifier=cloud.subnet_id,
-                                                                         MinSize=min_size, MaxSize=max_size,
-                                                                         HealthCheckType=health_check_type,
-                                                                         DesiredCapacity=desired_capacity,
-                                                                         AvailabilityZones=(cloud.zone,))
-            else:
-                raise ClientError("Unable to invoke 'create_auto_scaling_group' due to bad arguments", 'Create')
+            print('Create AutoScaling group: %s' % self.name)
+            self.response = self.autoscale.create_auto_scaling_group(AutoScalingGroupName=self.name,
+                                                                     Tags=[{'Key': self.tag, 'Value': self.tag}],
+                                                                     MinSize=self.min_count, MaxSize=self.max_count,
+                                                                     LaunchConfigurationName=self.name,
+                                                                     VPCZoneIdentifier=",".join(self.subnet_ids),
+                                                                     DesiredCapacity=self.desired_capacity,
+                                                                     HealthCheckType=self.hc_type)
+            # Doing the separately due to annoying ValidationError from previous command
+            self.attach_target_groups(self)
         except ClientError as err:
             AutoScaling.handle(err)
         except Exception as err:
             AutoScaling.fatal(err)
 
     @staticmethod
-    def delete(self, force=True):
+    def delete(self):
         """
         Delete AutoScaling group
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/autoscaling.html#AutoScaling.Client.delete_auto_scaling_group
         """
         try:
-            print('Delete AutoScaling group %s' % self.asg_name)
-            self.autoscale.delete_auto_scaling_group(AutoScalingGroupName=self.asg_name, ForceDelete=force)
-            print('Wait 60s for pending delete ...')
-            time.sleep(60)
+            print('Delete AutoScaling group %s' % self.name)
+            self.autoscale.delete_auto_scaling_group(AutoScalingGroupName=self.name, ForceDelete=self.force_delete)
         except ClientError as err:
             AutoScaling.handle(err)
         except Exception as err:
@@ -1311,14 +1606,44 @@ class AutoScalingGroup(AutoScaling):
             AutoScaling.fatal(err)
 
     @staticmethod
-    def attach_instances(self, asg_name, instance_ids):
+    def attach_instances(self, instance_ids):
         """
         Attaches one or more EC2 instances to the specified Auto Scaling group.
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/autoscaling.html#AutoScaling.Client.attach_instances
         """
         try:
-            print('Attach instances to AutoScaling group %s' % asg_name)
-            self.autoscale.delete_auto_scaling_group(InstanceIds=instance_ids, AutoScalingGroupName=asg_name)
+            print('Attach instances to AutoScaling group %s' % self.asg_name)
+            self.autoscale.delete_auto_scaling_group(InstanceIds=instance_ids, AutoScalingGroupName=self.asg_name)
+        except ClientError as err:
+            AutoScaling.handle(err)
+        except Exception as err:
+            AutoScaling.fatal(err)
+
+    @staticmethod
+    def attach_target_groups(self):
+        """
+        Attaches one or more target groups to the specified Auto Scaling group
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/autoscaling.html#AutoScaling.Client.attach_load_balancer_target_groups
+        """
+        try:
+            print('Attach target groups to AutoScaling group %s' % self.asg_name)
+            self.autoscale.attach_load_balancer_target_groups(AutoScalingGroupName=self.name,
+                                                              TargetGroupARNs=self.lb_arns)
+        except ClientError as err:
+            AutoScaling.handle(err)
+        except Exception as err:
+            AutoScaling.fatal(err)
+
+    @staticmethod
+    def detach_target_groups(self):
+        """
+        Detaches one or more target groups from the specified Auto Scaling group.
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/autoscaling.html#AutoScaling.Client.detach_load_balancer_target_groups
+        """
+        try:
+            print('Detach target groups to AutoScaling group %s' % self.asg_name)
+            self.autoscale.detach_load_balancer_target_groups(AutoScalingGroupName=self.name,
+                                                              TargetGroupARNs=self.lb_arns)
         except ClientError as err:
             AutoScaling.handle(err)
         except Exception as err:
@@ -1330,16 +1655,16 @@ class AutoScalingGroupTags(AutoScaling):
     AUTO SCALING GROUP TAGS
     """
 
-    def __init__(self, cloud, resource=None):
+    def __init__(self, data=None):
         """
         Creates or updates tags for the specified Auto Scaling group
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/autoscaling.html#AutoScaling.Client.create_or_update_tags
         """
-        super().__init__(cloud.name)
+        super().__init__(data)
         try:
-            print('Create tag %s = %s for %s %s' % (cloud.name, cloud.tag, resource, ('(dry)' if cloud.dry else '')))
-            self.autoscale.create_or_update_tags(Tags=[{'ResourceId': cloud.name, 'ResourceType': 'auto-scaling-group',
-                                                        'Key': cloud.name, 'Value': cloud.tag,
+            print('Create tag %s = %s for %s %s' % (self.name, self.tag, self.resource, ('(dry)' if self.dry else '')))
+            self.autoscale.create_or_update_tags(Tags=[{'ResourceId': self.name, 'ResourceType': self.resource,
+                                                        'Key': self.name, 'Value': self.tag,
                                                         'PropagateAtLaunch': True}])
         except ClientError as err:
             Compute.handle(err)
@@ -1380,19 +1705,20 @@ class AutoScalingPolicy(AutoScaling):
     AUTO SCALING POLICY
     """
 
-    def __init__(self, cloud, policy_type='TargetTrackingScaling',  estimated_instance_warmup=90,
-                 metric='ASGAverageCPUUtilization', metric_value=50):
+    def __init__(self, data=None):
         """
         Creates or updates a policy for an Auto Scaling group
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/autoscaling.html#AutoScaling.Client.put_scaling_policy
         """
-        super().__init__(cloud.name)
-        config = {'PredefinedMetricSpecification': {'PredefinedMetricType': metric}, 'TargetValue': metric_value}
+        super().__init__(data)
+        config = {'PredefinedMetricSpecification': {'PredefinedMetricType': self.metric},
+                  'TargetValue': self.metric_value}
         try:
-            print('Create AutoScaling policy %s' % cloud.name)
-            self.autoscale.put_scaling_policy(AutoScalingGroupName=cloud.name, PolicyName=cloud.name,
-                                              PolicyType=policy_type, EstimatedInstanceWarmup=estimated_instance_warmup,
-                                              TargetTrackingConfiguration=config)
+            print('Create AutoScaling policy %s' % self.name)
+            self.autoscale.put_scaling_policy(AutoScalingGroupName=self.name, PolicyName=self.name,
+                                              EstimatedInstanceWarmup=self.est_warmup,
+                                              TargetTrackingConfiguration=config,
+                                              PolicyType=self.policy_type)
         except ClientError as err:
             AutoScaling.handle(err)
         except Exception as err:
@@ -1420,8 +1746,7 @@ class AutoScalingPolicy(AutoScaling):
         """
         try:
             if asg_name and pol_names and pol_types:
-                return self.autoscale.describe_auto_scaling_groups(AutoScalingGroupName=asg_name,
-                                                                   PolicyNames=pol_names,
+                return self.autoscale.describe_auto_scaling_groups(AutoScalingGroupName=asg_name, PolicyNames=pol_names,
                                                                    PolicyTypes='TargetTrackingScaling')
             else:
                 return self.autoscale.describe_auto_scaling_groups()
@@ -1436,17 +1761,16 @@ class AutoScalingNotification(AutoScaling):
     AUTO SCALING NOTIFICATION
     """
 
-    def __init__(self, cloud, notice_types=('autoscaling:TEST_NOTIFICATION',)):
+    def __init__(self, data=None):
         """
         Configures an Auto Scaling group to send notifications
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/autoscaling.html#AutoScaling.Client.put_notification_configuration
         """
-        super().__init__(cloud.name)
+        super().__init__(data)
         try:
-            print('Create AutoScaling Notification %s' % cloud.name)
-            self.autoscale.put_notification_configuration(AutoScalingGroupName=cloud.name,
-                                                          NotificationTypes=notice_types,
-                                                          TopicARN=cloud.topic_arn)
+            print('Create AutoScaling Notification %s' % self.name)
+            self.autoscale.put_notification_configuration(AutoScalingGroupName=self.name, TopicARN=self.topic_arn,
+                                                          NotificationTypes=self.notice_types)
         except ClientError as err:
             AutoScaling.handle(err)
         except Exception as err:
@@ -1467,159 +1791,14 @@ class AutoScalingNotification(AutoScaling):
             ElasticLoadBalancing.fatal(err)
 
     @staticmethod
-    def list(self, pol_names=None, pol_types=('TargetTrackingScaling',)):
+    def list(self):
         """
         Get AutoScaling Notifications by filtering
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/autoscaling.html#AutoScaling.Client.describe_notification_configurations
         """
         try:
-            if pol_names and pol_types:
-                return self.autoscale.describe_policies(AutoScalingGroupName=self.name, PolicyNames=pol_names,
-                                                        PolicyTypes=pol_types)
-            else:
-                return self.autoscale.describe_policies(PolicyTypes=pol_types)
+            return self.autoscale.describe_policies(AutoScalingGroupName=self.name, PolicyTypes=(self.policy_type,))
         except ClientError as err:
             AutoScaling.handle(err)
         except Exception as err:
             AutoScaling.fatal(err)
-
-
-# ********************************************************* #
-# *********** ELASTIC LOAD BALANCING (ELB) **************** #
-# ********************************************************* #
-
-class ElasticLoadBalancing(Compute):
-    """
-    ELASTIC LOAD BALANCING v2
-    https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/elbv2.html
-    """
-
-    def __init__(self, name, tag='boto3-client-sdk', region='eu-west-1', zone='eu-west-1a', key_pair='ec2_user',
-                 cidr4=None, ami_id='ami-0fad7378adf284ce0', ami_type='t2.micro', hibernate=True, user_data=None,
-                 dry=False):
-        """
-        Initialise data for ElasticLoadBalancing
-        """
-        super().__init__(name, tag, region, zone, key_pair, cidr4, ami_id, ami_type, hibernate, user_data, dry)
-        self.elb = boto3.client('elbv2')
-        self.response = None
-
-
-class LoadBalancer(ElasticLoadBalancing):
-    """
-    LOAD BALANCER
-    """
-
-    def __init__(self, cloud, ip_version='ipv4', lb_type='application', scheme='internet-facing'):
-        """
-        Initialize and Create Elastic Load Balancerv2
-        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/elbv2.html#ElasticLoadBalancingv2.Client.create_load_balancer
-        """
-        super().__init__(cloud.name)
-        try:
-            print('Create Elastic Load Balancer: %s' % cloud.name)
-            self.response = self.elb.create_load_balancer(Name=cloud.name, Subnets=(cloud.subnet_id,),
-                                                          SecurityGroups=(cloud.sg_id,), IpAddressType=ip_version,
-                                                          Tags=[{'Key': cloud.tag, 'Value': cloud.tag}],
-                                                          Type=lb_type, Scheme=scheme)
-            self.create_tag(cloud, self.response['LoadBalancers']['LoadBalancerArn'])
-        except ClientError as err:
-            ElasticLoadBalancing.handle(err)
-        except Exception as err:
-            ElasticLoadBalancing.fatal(err)
-
-    @staticmethod
-    def delete(self, load_balancer_arn=None):
-        """
-        Delete Elastic Load Balancer
-        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/elbv2.html#ElasticLoadBalancingv2.Client.delete_load_balancer
-        """
-        try:
-            print('Delete Elastic Load Balancer %s' % load_balancer_arn)
-            self.elb.delete_load_balancer(LoadBalancerArn=load_balancer_arn)
-        except ClientError as err:
-            ElasticLoadBalancing.handle(err)
-        except Exception as err:
-            ElasticLoadBalancing.fatal(err)
-
-    @staticmethod
-    def list(self):
-        """
-        Get Elastic Load Balancer groups by filtering
-        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/elbv2.html#ElasticLoadBalancingv2.Client.describe_load_balancers
-        """
-        try:
-            if self.load_balancer_arn:
-                return self.elb.describe_load_balancers(LoadBalancerArns=(self.load_balancer_arn,))
-            elif self.name:
-                return self.elb.describe_load_balancers(Names=(self.name,))
-        except ClientError as err:
-            ElasticLoadBalancing.handle(err)
-        except Exception as err:
-            ElasticLoadBalancing.fatal(err)
-
-
-# ********************************************************* #
-# ********* SIMPLE NOTIFICATION SERVICE CLIENT ************ #
-# ********************************************************* #
-
-
-class SimpleNotificationService(Compute):
-    """
-    SIMPLE NOTIFICATION SERVICE (SNS)
-    """
-
-    def __init__(self, name, tag='boto3-client-sdk', region='eu-west-1', zone='eu-west-1a', key_pair='ec2_user'):
-        """
-        Initialise data for Simple Notifications
-        """
-        super().__init__(name, tag, region, zone, key_pair)
-        self.sns = boto3.client('sns')
-
-
-class SimpleNotificationServiceTopic(SimpleNotificationService):
-    """
-    SNS TOPIC
-    """
-
-    def __init__(self, cloud):
-        """
-        Creates a topic to which notifications can be published
-        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/sns.html#SNS.Client.create_topic
-        """
-        super().__init__(cloud.name)
-        try:
-            print('Create SNS topic  %s' % cloud.name)
-            self.response = self.sns.create_topic(Name=cloud.name)
-            self.topic_arn = self.response['TopicArn']
-        except ClientError as err:
-            Compute.handle(err)
-        except Exception as err:
-            Compute.fatal(err)
-
-    @staticmethod
-    def delete(self):
-        """
-        Delete SNS topic
-        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/sns.html#SNS.Client.delete_topic
-        """
-        try:
-            print('Delete SNS topic %s %s' % (self.topic_arn, ('(dry)' if self.dry else '')))
-            return self.sns.delete_topic(TopicArn=self.topic_arn)
-        except ClientError as err:
-            Compute.handle(err)
-        except Exception as err:
-            Compute.fatal(err)
-
-    @staticmethod
-    def list(self):
-        """
-        Get (requester) SNS topics
-        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/sns.html#SNS.Client.list_topics
-        """
-        try:
-            return self.sns.list_topics()
-        except ClientError as err:
-            Compute.handle(err)
-        except Exception as err:
-            Compute.fatal(err)
