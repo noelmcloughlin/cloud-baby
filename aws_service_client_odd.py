@@ -575,7 +575,7 @@ def usage():
 
    ACTIONS
           -a --action      start | clean | cleanstart ]        (default: 'help')
-        [ -w --wanted      %s %s %s %s %s ]  (default: 'vpc-instance')
+        [ -w --wanted      %s %s %s %s %s ]  (default: 'vpc-instance-sns')
    ARGUMENTS
         [ -c --cidr4       <value> ]    IPv4 Cidr Block  (default: '[172.35.0.0/24, 127.36.0.0/24])'
         [ -i --image       <value> ]    Image ID         (default: 'ami-0fad7378adf284ce0')

@@ -2,11 +2,10 @@
 public-cloud-cli
 ================
 
-AWS
-===
+AWS Boto3 Client SDK
+====================
 
-Boto3 Client SDK
-======
+Usage::
 
    $ ./aws_service_client_ood.py --help
 
@@ -15,7 +14,7 @@ Boto3 Client SDK
  
    ACTIONS
  	  -a --action	   start | clean | cleanstart ]		(default: 'help')
- 	[ -w --wanted	  sns vpc elb autoscaling instance ]	(default: 'vpc-instance')
+ 	[ -w --wanted	  sns vpc elb autoscaling instance ]	(default: 'vpc-instance-sns')
    ARGUMENTS
  	[ -c --cidr4	   <value> ]	IPv4 Cidr Block	 (default: '[172.35.0.0/24, 127.36.0.0/24])'
  	[ -i --image	   <value> ]	Image ID	 (default: 'ami-0fad7378adf284ce0')
@@ -101,10 +100,8 @@ Create tagged secure EC2/SNS/VPC service with four instances::
 
 Teardown tagged secure EC2/SNS/VPC service with four instances::
 
-     $ ./aws_service_client_ood.py -a start
+     $ ./aws_service_client_ood.py -a clean
 
-        $ ./aws_compute_client_ood.py -a clean
-        
         Teardown Simple Notification Service
         Delete SNS topic arn:aws:sns:eu-west-1:347924373385:boto3-client-sdk 
         Done
@@ -226,9 +223,9 @@ Create tagged secure ASG/EC2/ELB/SNS/VPC service with two zones/instances::
                 
 
 
-Teardown tagged secure ASG/EC2/ELB/SNS/VPC service with two zones/instances::
+Teardown tagged secure ASG/EC2/ELB/SNS/VPC services with two zones/instances::
 
-      $ ./aws_service_client_ood.py -a cleanstart -w 'sns-vpc-autoscaling-elb'
+      $ ./aws_service_client_ood.py -a clean -w 'sns-vpc-autoscaling-elb'
         
         Teardown Simple Notification Service
         Delete SNS topic arn:aws:sns:eu-west-1:347924373385:boto3-client-sdk 
@@ -291,6 +288,9 @@ Teardown tagged secure ASG/EC2/ELB/SNS/VPC service with two zones/instances::
         Delete sg-0bb8d3baee1246265 
         Delete vpc-00e32a97fa23f8d77
 
+
+Teardown various stuff::
+
         $ ./aws_compute_client_ood.py -a clean -w 'sns-vpc-autoscaling-elb'
         
         Teardown Simple Notification Service
@@ -307,20 +307,10 @@ Teardown tagged secure ASG/EC2/ELB/SNS/VPC service with two zones/instances::
         No VPCs found
 
 
-Teardown various stuff::
-        
-        $ ./aws_service_client_odd.py -a clean -w 'elb-autoscaling-vpc-sns'
+        $ ./aws_service_client_odd.py -a clean -w 'vpc-instance-sns'
         
         Teardown Simple Notification Service
         Done
         
-        Teardown Elastic Load Balancer
-        No Elastic Load Balancer found
-        
-        Teardown AutoScaling
-        No Auto Scaling Groups found
-        No Launch Configurations found
-        
         Teardown VPC & Security 
         No VPCs found
-
