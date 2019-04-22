@@ -18,12 +18,12 @@ Usage::
    ARGUMENTS
  	[ -c --cidr4	   <value> ]	IPv4 Cidr Block	 (default: '[172.35.0.0/24, 127.36.0.0/24])'
  	[ -i --image	   <value> ]	Image ID	 (default: 'ami-0fad7378adf284ce0')
- 	[ -k --keypair	   <value> ]	Key Pair name	 (default: 'ec2_data'
+ 	[ -k --keypair	   <value> ]	Key Pair name	 (default: 'ec2_user'
  	[ -m --maxcount	   <value> ]	Max instances	 (default: 2)
- 	[ -n --name	   <value> ]	Tag Key		 (default: 'ec2_data')
+ 	[ -n --name	   <value> ]	Tag Key		 (default: 'boto3-client-sdk')
  	[ -r --region	   <value> ]	Cloud Region	 (default 'eu-west-1)
  	[ -s --sleep	   True|False ] Hibernate	 (default: True)
- 	[ -t --tag	   <value> ]	Tag value	 (default: 'boto3-client-aws')
+ 	[ -t --tag	   <value> ]	Tag value	 (default: 'boto3-client-sdk')
  	[ -y --image-type  <value> ]	Instance Type	 (default: 't2.micro')
    FLAGS
  	[ -6 --ipv6 ]			Use IpV6	 (default: False)
@@ -33,7 +33,7 @@ Usage::
 
 Create tagged secure EC2/SNS/VPC service with four instances::
 
-     $ ./aws_service_client_ood.py -a start
+     $ ./aws_service_client_ood.py -k my_keypair -a start
 
         Startup Simple Notification Service
         Create SNS topic  boto3-client-sdk
@@ -100,7 +100,7 @@ Create tagged secure EC2/SNS/VPC service with four instances::
 
 Teardown tagged secure EC2/SNS/VPC service with four instances::
 
-     $ ./aws_service_client_ood.py -a clean
+     $ ./aws_service_client_ood.py -k my_keypair -a clean
 
         Teardown Simple Notification Service
         Delete SNS topic arn:aws:sns:eu-west-1:347924373385:boto3-client-sdk 
@@ -162,7 +162,7 @@ Teardown tagged secure EC2/SNS/VPC service with four instances::
 
 Create tagged secure ASG/EC2/ELB/SNS/VPC service with two zones/instances::
 
-     $ ./aws_service_client_ood.py -a start -w 'sns-vpc-autoscaling-elb'
+     $ ./aws_service_client_ood.py -k my_keypair -a start -w 'sns-vpc-autoscaling-elb'
 
         Startup Simple Notification Service
         Create SNS topic  boto3-client-sdk
@@ -225,7 +225,7 @@ Create tagged secure ASG/EC2/ELB/SNS/VPC service with two zones/instances::
 
 Teardown tagged secure ASG/EC2/ELB/SNS/VPC services with two zones/instances::
 
-      $ ./aws_service_client_ood.py -a clean -w 'sns-vpc-autoscaling-elb'
+      $ ./aws_service_client_ood.py -k my_keypair -a clean -w 'sns-vpc-autoscaling-elb'
         
         Teardown Simple Notification Service
         Delete SNS topic arn:aws:sns:eu-west-1:347924373385:boto3-client-sdk 
@@ -291,7 +291,7 @@ Teardown tagged secure ASG/EC2/ELB/SNS/VPC services with two zones/instances::
 
 Teardown various stuff::
 
-        $ ./aws_compute_client_ood.py -a clean -w 'sns-vpc-autoscaling-elb'
+        $ ./aws_compute_client_ood.py -k my_keypair -a clean -w 'sns-vpc-autoscaling-elb'
         
         Teardown Simple Notification Service
         Done
@@ -307,7 +307,7 @@ Teardown various stuff::
         No VPCs found
 
 
-        $ ./aws_service_client_odd.py -a clean -w 'vpc-instance-sns'
+        $ ./aws_service_client_odd.py -k my_keypair -a clean -w 'vpc-instance-sns'
         
         Teardown Simple Notification Service
         Done

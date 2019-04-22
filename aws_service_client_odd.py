@@ -579,12 +579,12 @@ def usage():
    ARGUMENTS
         [ -c --cidr4       <value> ]    IPv4 Cidr Block  (default: '[172.35.0.0/24, 127.36.0.0/24])'
         [ -i --image       <value> ]    Image ID         (default: 'ami-0fad7378adf284ce0')
-        [ -k --keypair     <value> ]    Key Pair name    (default: 'ec2_data'
+        [ -k --keypair     <value> ]    Key Pair name    (default: 'ec2_user'
         [ -m --maxcount    <value> ]    Max instances    (default: 2)
-        [ -n --name        <value> ]    Tag Key          (default: 'ec2_data')
+        [ -n --name        <value> ]    Name / Tag Key   (default: 'boto3-client-sdk')
         [ -r --region      <value> ]    Cloud Region     (default 'eu-west-1)
         [ -s --sleep       True|False ] Hibernate        (default: True)
-        [ -t --tag         <value> ]    Tag value        (default: 'boto3-client-aws')
+        [ -t --tag         <value> ]    Tag value        (default: 'boto3-client-sdk')
         [ -y --image-type  <value> ]    Instance Type    (default: 't2.micro')
    FLAGS
         [ -6 --ipv6 ]                   Use IpV6         (default: False)
