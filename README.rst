@@ -2,8 +2,8 @@
 cloud-baby
 ===========
 
-1. AWS Python Boto3 Client SDK
-==============================
+AWS Python Boto3 Client SDK
+===========================
 
 Usage::
 
