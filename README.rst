@@ -205,7 +205,6 @@ Create tagged secure ASG/EC2/ELB/SNS/VPC service with two zones/instances::
           Create Target Group for boto3-client-sdk
           Create Tags for arn:aws:elasticloadbalancing:eu-west-1:347924373385:loadbalancer/app/boto3-client-sdk/3814273b7a318209
           Create Listener for boto3-client-sdk
-          failed to create ELB Target Group
           elb created
           
           Create AutoScaling
