@@ -1,316 +1,274 @@
-================
-public-cloud-cli
-================
+==========
+cloud-baby
+===========
 
-AWS Boto3 Client SDK
-====================
+1. AWS Python Boto3 Client SDK
+==============================
 
 Usage::
 
-   $ ./aws_service_client_ood.py --help
+   Beware: Only --action, --help, --wanted arguments are tested.
 
-   Create, configure, and manage Amazon Web Services (AWS) services across multiple
-   Availability Zones: SNS, AutoScaling, ELB, VPC, and EC2 instances.
- 
-   ACTIONS
- 	  -a --action	   start | clean | cleanstart ]		(default: 'help')
- 	[ -w --wanted	  sns vpc elb autoscaling instance ]	(default: 'vpc-instance-sns')
-   ARGUMENTS
- 	[ -c --cidr4	   <value> ]	IPv4 Cidr Block	 (default: '[172.35.0.0/24, 127.36.0.0/24])'
- 	[ -i --image	   <value> ]	Image ID	 (default: 'ami-0fad7378adf284ce0')
- 	[ -k --keypair	   <value> ]	Key Pair name	 (default: 'ec2_user'
- 	[ -m --maxcount	   <value> ]	Max instances	 (default: 2)
- 	[ -n --name	   <value> ]	Tag Key		 (default: 'boto3-client-sdk')
- 	[ -r --region	   <value> ]	Cloud Region	 (default 'eu-west-1)
- 	[ -s --sleep	   True|False ] Hibernate	 (default: True)
- 	[ -t --tag	   <value> ]	Tag value	 (default: 'boto3-client-sdk')
- 	[ -y --image-type  <value> ]	Instance Type	 (default: 't2.micro')
-   FLAGS
- 	[ -6 --ipv6 ]			Use IpV6	 (default: False)
- 	[ -d --debug ]
- 	[ -h --help ]
+   $ ./awsbaby.py --help
+
+  Create, configure, and manage Amazon Web Services (AWS) across multiple Availability zones.
+    The currently available features are AutoScaling, ELB, VPC, and EC2 services.
+
+    ACTIONS
+      -a --choice      start | clean | cleanstart ]        (default: help)
+    [ -w --wanted      sns vpc elb autoscaling ec2 sec ]   (default: vpc-sec-ec2)
+
+    ARGUMENTS
+        [ -c --cidr4       <value> ]    IPv4 Child Cidrs   (default: ['10.0.0.0/25', '10.0.0.128/25'])
+        [ -i --image       <value> ]    Image ID           (default: ami-0fad7378adf284ce0)
+        [ -y --image-type  <value> ]    Instance Type      (default: t2.micro)
+        [ -k --keypair     <value> ]    Key Pair name      (default: ec2_user)
+        [ -m --maxcount    <value> ]    Max instances      (default: 2)
+        [ -n --name        <value> ]    Name / Tag Key     (default: boto3-client-sdk)
+        [ -r --region      <value> ]    Cloud Region       (default: eu-west-1)
+        [ -s --sleep       <Boolean> ]  Hibernate          (default: True)
+        [ -t --tag         <value> ]    Tag value          (default: boto3-client-sdk)
+        [ -i --vpc4        <value> ]    IPv4 Parent Cidr   (default: ['10.0.0.0/24'])
+
+    FLAGS
+        [ -6 --ip6 ]                    Use IpV6           (default: False)
+        [ -d --debug ]
+        [ -h --help ]
+
 
 
 Create tagged secure EC2/SNS/VPC service with four instances::
 
-     $ ./aws_service_client_ood.py -k my_keypair -a start
+     $ ./awsbaby.py -k your_keypair -a start
 
-        Startup Simple Notification Service
+        
+        Create a Virtual Private Cloud
+        Create VPC boto3-client-sdk
+        Create tag boto3-client-sdk = boto3-client-sdk for vpc-06e609e554838bb0d 
+        Create security group 
+        Create tag boto3-client-sdk = boto3-client-sdk for sg-019de3f43dcaff883 
+        Authorize sg ingress sg-019de3f43dcaff883 
+        Authorize sg egress sg-019de3f43dcaff883 
+        Authorize sg ingress sg-019de3f43dcaff883 
+        Authorize sg egress sg-019de3f43dcaff883 
+        Authorize sg ingress sg-019de3f43dcaff883 
+        Authorize sg egress sg-019de3f43dcaff883 
+        
+        Create Simple Notification Service Topic
         Create SNS topic  boto3-client-sdk
         
-        Startup Virtual Private Cloud & Security
-        Create VPC boto3-client-sdk
-        Create tag boto3-client-sdk = boto3-client-sdk for vpc-098b2fa5ee724352c 
+        Create a EC2 compute environment
         Create internet gateway 
-        Create tag boto3-client-sdk = boto3-client-sdk for igw-013cd2de19cd970ff 
-        Attach igw-013cd2de19cd970ff to vpc-098b2fa5ee724352c 
-        Create route table for vpc-098b2fa5ee724352c 
-        Create tag boto3-client-sdk = boto3-client-sdk for rtb-071bb1bce1a2a8176 
-        Create ipv4 route for 0.0.0.0/0 
-        Create ipv6 route for ::/0 
+        Create tag boto3-client-sdk = boto3-client-sdk for igw-005b3daff2a05134e 
+        Attach igw-005b3daff2a05134e to vpc-06e609e554838bb0d 
+        Create route table for vpc-06e609e554838bb0d 
+        Create tag boto3-client-sdk = boto3-client-sdk for rtb-04c0e3bacc4c526d3 
+        Create ip4 route for rtb-04c0e3bacc4c526d3 0.0.0.0/0 
         Create subnet for 10.0.0.0/25 
-        Create tag boto3-client-sdk = boto3-client-sdk for subnet-08b06ebcbdf1cb1ec 
-        Map subnet-08b06ebcbdf1cb1ec public-ip-on-launch
-        Associate route table rtb-071bb1bce1a2a8176 to subnet-08b06ebcbdf1cb1ec 
-        Create network acl for vpc-098b2fa5ee724352c 
-        Create tag boto3-client-sdk = boto3-client-sdk for acl-0a0588f83ca9819a9 
-        Create network acl entry for acl-0a0588f83ca9819a9 10.0.0.0/25 
-        Create network acl entry for acl-0a0588f83ca9819a9 10.0.0.0/25 
+        Create tag boto3-client-sdk = boto3-client-sdk for subnet-0e23d3e5121b92a96 
+        Map subnet-0e23d3e5121b92a96 public-ip-on-launch
+        Associate route table rtb-04c0e3bacc4c526d3 to subnet-0e23d3e5121b92a96 
+        Create network acl for vpc-06e609e554838bb0d 
+        Create tag boto3-client-sdk = boto3-client-sdk for acl-074631017b0e141e2 
+        Create network acl entry for acl-074631017b0e141e2 10.0.0.0/25 
+        Create network acl entry for acl-074631017b0e141e2 10.0.0.0/25 
         Create subnet for 10.0.0.128/25 
-        Create tag boto3-client-sdk = boto3-client-sdk for subnet-0c5e48ae85c7464ad 
-        Map subnet-0c5e48ae85c7464ad public-ip-on-launch
-        Associate route table rtb-071bb1bce1a2a8176 to subnet-0c5e48ae85c7464ad 
-        Create network acl for vpc-098b2fa5ee724352c 
-        Create tag boto3-client-sdk = boto3-client-sdk for acl-028389faff507ba3b 
-        Create network acl entry for acl-028389faff507ba3b 10.0.0.0/25 
-        Create network acl entry for acl-028389faff507ba3b 10.0.0.0/25 
-        Create tag boto3-client-sdk = boto3-client-sdk for eipalloc-0f6f2757684e693e2 
-        Created elastic ip eipalloc-0f6f2757684e693e2 for vpc 
-        Create tag boto3-client-sdk = boto3-client-sdk for eipalloc-01c8f7fff2b56b9cb 
-        Created elastic ip eipalloc-01c8f7fff2b56b9cb for vpc 
-        Create security group 
-        Create tag boto3-client-sdk = boto3-client-sdk for sg-05b76b08982610fe0 
-        Authorize sg ingress sg-05b76b08982610fe0 
-        Authorize sg egress sg-05b76b08982610fe0 
-        Authorize sg ingress sg-05b76b08982610fe0 
-        Authorize sg egress sg-05b76b08982610fe0 
-        Authorize sg ingress sg-05b76b08982610fe0 
-        Authorize sg egress sg-05b76b08982610fe0 
+        Create tag boto3-client-sdk = boto3-client-sdk for subnet-09c995ad9102075b6 
+        Map subnet-09c995ad9102075b6 public-ip-on-launch
+        Associate route table rtb-04c0e3bacc4c526d3 to subnet-09c995ad9102075b6 
+        Create network acl for vpc-06e609e554838bb0d 
+        Create tag boto3-client-sdk = boto3-client-sdk for acl-0b76e657b0a6c79f4 
+        Create network acl entry for acl-0b76e657b0a6c79f4 10.0.0.128/25 
+        Create network acl entry for acl-0b76e657b0a6c79f4 10.0.0.128/25 
         Create launch_template 
-        Create tag boto3-client-sdk = boto3-client-sdk for lt-0d98d8afd54ba10f0 
-        Create launch_template lt-0d98d8afd54ba10f0 version 0
+        Create tag boto3-client-sdk = boto3-client-sdk for lt-0f122d11c9663b9e8 
+        Create launch_template lt-0f122d11c9663b9e8 version 0
+        Startup EC2 Instance group 0
+        Create tag boto3-client-sdk = boto3-client-sdk for i-01411e9c5d652f94d 
+        initialized Instance i-01411e9c5d652f94d
+        initialized Instance i-0ce60380b15dd6c8f
+        Create launch_template lt-0f122d11c9663b9e8 version 1
         Startup EC2 Instance group 1
-        Create tag boto3-client-sdk = boto3-client-sdk for i-01a06ad79883a2a39 
-        Wait until running ...
-        created Instance i-01a06ad79883a2a39
-        Associate elastic ip eipalloc-0f6f2757684e693e2 with i-01a06ad79883a2a39 
-        Wait until running ...
-        created Instance i-071ccb10a4aa8e22a
-        Associate elastic ip eipalloc-01c8f7fff2b56b9cb with i-071ccb10a4aa8e22a 
-        Create launch_template lt-0d98d8afd54ba10f0 version 1
-        Startup EC2 Instance group 2
-        Create tag boto3-client-sdk = boto3-client-sdk for i-07a079fe927221872 
-        Wait until running ...
-        created Instance i-07a079fe927221872
-        Associate elastic ip eipalloc-0f6f2757684e693e2 with i-07a079fe927221872 
-        Wait until running ...
-        created Instance i-034699240c0a04a74
-        Associate elastic ip eipalloc-01c8f7fff2b56b9cb with i-034699240c0a04a74 
+        Create tag boto3-client-sdk = boto3-client-sdk for i-09f4ee43f92f8e207 
+        initialized Instance i-09f4ee43f92f8e207
+        initialized Instance i-0d0dc1ec34ad1aec1
+        
+        Ok
 
 
 Teardown tagged secure EC2/SNS/VPC service with four instances::
 
-     $ ./aws_service_client_ood.py -k my_keypair -a clean
+     $ ./awsbaby.py -k your_keypair -a clean
 
+        
         Teardown Simple Notification Service
         Delete SNS topic arn:aws:sns:eu-west-1:347924373385:boto3-client-sdk 
-        Done
         
-        Teardown VPC & Security 
-        Found: vpc-098b2fa5ee724352c
-        No vpc endpoints detected
-        No vpc connection endpoints detected
-        Delete instance i-071ccb10a4aa8e22a 
+        Teardown EC2 infrastructure
+        Delete instance i-0ce60380b15dd6c8f 
         Terminated 
-        Delete instance i-01a06ad79883a2a39 
+        Delete instance i-01411e9c5d652f94d 
         Terminated 
-        Delete instance i-034699240c0a04a74 
+        Delete instance i-09f4ee43f92f8e207 
         Terminated 
-        Delete instance i-07a079fe927221872 
+        Delete instance i-0d0dc1ec34ad1aec1 
         Terminated 
-        Release eipalloc-01c8f7fff2b56b9cb 
-        Release eipalloc-0f6f2757684e693e2 
-        Delete launch template lt-0d98d8afd54ba10f0 version 3
-        Delete launch template lt-0d98d8afd54ba10f0 version 2
-        Delete launch template lt-0d98d8afd54ba10f0 version 1
-        Delete launch_template lt-0d98d8afd54ba10f0 boto3-client-sdk
+        No elastic ips detected
+        Delete launch template lt-0f122d11c9663b9e8 version 3
+        Delete launch template lt-0f122d11c9663b9e8 version 2
+        Delete launch template lt-0f122d11c9663b9e8 version 1
+        Delete launch_template lt-0f122d11c9663b9e8 boto3-client-sdk
         No network interfaces detected
-        Detach igw-013cd2de19cd970ff from vpc-098b2fa5ee724352c 
-        Delete internet gateway igw-013cd2de19cd970ff 
-        Delete subnet-08b06ebcbdf1cb1ec 
-        Delete subnet-0c5e48ae85c7464ad 
-        Delete rtb-071bb1bce1a2a8176 
+        Detach igw-005b3daff2a05134e from vpc-06e609e554838bb0d 
+        Delete internet gateway igw-005b3daff2a05134e 
+        Delete subnet-09c995ad9102075b6 
+        Delete subnet-0e23d3e5121b92a96 
         Skipping main route table
+        Delete rtb-04c0e3bacc4c526d3 
         No nat gateways detected
-        Delete entry for acl-0a0588f83ca9819a9 
-        Delete entry for acl-0a0588f83ca9819a9 
-        Delete entry for acl-0a0588f83ca9819a9 
-        Delete entry for acl-0a0588f83ca9819a9 
-        Delete acl-0a0588f83ca9819a9 
-        Delete entry for acl-028389faff507ba3b 
-        Delete entry for acl-028389faff507ba3b 
-        Delete entry for acl-028389faff507ba3b 
-        Delete entry for acl-028389faff507ba3b 
-        Delete acl-028389faff507ba3b 
-        Revoke sg ingress from sg-05b76b08982610fe0 
-        Revoke sg ingress from sg-05b76b08982610fe0 
-        Revoke sg ingress from sg-05b76b08982610fe0 
-        Revoke sg ingress from sg-05b76b08982610fe0 
-        Revoke sg ingress from sg-05b76b08982610fe0 
-        Revoke sg ingress from sg-05b76b08982610fe0 
-        Revoke sg egress sg-05b76b08982610fe0 
-        Revoke sg egress sg-05b76b08982610fe0 
-        Revoke sg egress sg-05b76b08982610fe0 
-        Revoke sg egress sg-05b76b08982610fe0 
-        Revoke sg egress sg-05b76b08982610fe0 
-        Revoke sg egress sg-05b76b08982610fe0 
+        Delete entry for acl-0b76e657b0a6c79f4 
+        Delete entry for acl-0b76e657b0a6c79f4 
+        Delete entry for acl-0b76e657b0a6c79f4 
+        Delete entry for acl-0b76e657b0a6c79f4 
+        Delete acl-0b76e657b0a6c79f4 
+        Delete entry for acl-074631017b0e141e2 
+        Delete entry for acl-074631017b0e141e2 
+        Delete entry for acl-074631017b0e141e2 
+        Delete entry for acl-074631017b0e141e2 
+        Delete acl-074631017b0e141e2 
+        
+        Teardown Security Group
         No referencing security groups detected
-        Deleting security group sg-05b76b08982610fe0
-        Delete sg-05b76b08982610fe0 
-        Delete vpc-098b2fa5ee724352c 
+        Deleting security group sg-019de3f43dcaff883
+        Delete sg-019de3f43dcaff883 
+        
+        Teardown VPC
+        Delete vpc-06e609e554838bb0d 
+        
+        Teardown Security Group
+        No security groups detected
+        
+        Ok
 
 
 Create tagged secure ASG/EC2/ELB/SNS/VPC service with two zones/instances::
 
-     $ ./aws_service_client_ood.py -k my_keypair -a start -w 'sns-vpc-autoscaling-elb'
-
-        Startup Simple Notification Service
+     $ ./awsbaby.py -k your_keypair -a start -w 'sns-vpc-autoscaling-elb'
+        
+        Create a Virtual Private Cloud
+        Create VPC boto3-client-sdk
+        Create tag boto3-client-sdk = boto3-client-sdk for vpc-0a6fd97ca3b099531 
+        Create security group 
+        Create tag boto3-client-sdk = boto3-client-sdk for sg-00b6ea783220fde88 
+        Authorize sg ingress sg-00b6ea783220fde88 
+        Authorize sg egress sg-00b6ea783220fde88 
+        Authorize sg ingress sg-00b6ea783220fde88 
+        Authorize sg egress sg-00b6ea783220fde88 
+        Authorize sg ingress sg-00b6ea783220fde88 
+        Authorize sg egress sg-00b6ea783220fde88 
+        
+        Create Simple Notification Service Topic
         Create SNS topic  boto3-client-sdk
         
-        Startup Virtual Private Cloud & Security
-        Create VPC boto3-client-sdk
-        Create tag boto3-client-sdk = boto3-client-sdk for vpc-049ecaea22b0cf135 
+        Create a EC2 compute environment
         Create internet gateway 
-        Create tag boto3-client-sdk = boto3-client-sdk for igw-06b7accd6eb6a6db7 
-        Attach igw-06b7accd6eb6a6db7 to vpc-049ecaea22b0cf135 
-        Create route table for vpc-049ecaea22b0cf135 
-        Create tag boto3-client-sdk = boto3-client-sdk for rtb-00f4787156ee2e12c 
-        Create ipv4 route for 0.0.0.0/0 
-        Create ipv6 route for ::/0 
+        Create tag boto3-client-sdk = boto3-client-sdk for igw-0cbf42d25568b5432 
+        Attach igw-0cbf42d25568b5432 to vpc-0a6fd97ca3b099531 
+        Create route table for vpc-0a6fd97ca3b099531 
+        Create tag boto3-client-sdk = boto3-client-sdk for rtb-08ad6540092fa44d8 
+        Create ip4 route for rtb-08ad6540092fa44d8 0.0.0.0/0 
         Create subnet for 10.0.0.0/25 
-        Create tag boto3-client-sdk = boto3-client-sdk for subnet-0a3cdf8ad2703976a 
-        Map subnet-0a3cdf8ad2703976a public-ip-on-launch
-        Associate route table rtb-00f4787156ee2e12c to subnet-0a3cdf8ad2703976a 
-        Create network acl for vpc-049ecaea22b0cf135 
-        Create tag boto3-client-sdk = boto3-client-sdk for acl-093a613a461b4f34f 
-        Create network acl entry for acl-093a613a461b4f34f 10.0.0.0/25 
-        Create network acl entry for acl-093a613a461b4f34f 10.0.0.0/25 
+        Create tag boto3-client-sdk = boto3-client-sdk for subnet-0de926575ca79f18e 
+        Map subnet-0de926575ca79f18e public-ip-on-launch
+        Associate route table rtb-08ad6540092fa44d8 to subnet-0de926575ca79f18e 
+        Create network acl for vpc-0a6fd97ca3b099531 
+        Create tag boto3-client-sdk = boto3-client-sdk for acl-01f84dd3cae89399c 
+        Create network acl entry for acl-01f84dd3cae89399c 10.0.0.0/25 
+        Create network acl entry for acl-01f84dd3cae89399c 10.0.0.0/25 
         Create subnet for 10.0.0.128/25 
-        Create tag boto3-client-sdk = boto3-client-sdk for subnet-09cc65b33ee26cdc1 
-        Map subnet-09cc65b33ee26cdc1 public-ip-on-launch
-        Associate route table rtb-00f4787156ee2e12c to subnet-09cc65b33ee26cdc1 
-        Create network acl for vpc-049ecaea22b0cf135 
-        Create tag boto3-client-sdk = boto3-client-sdk for acl-078cbcfe52be729e4 
-        Create network acl entry for acl-078cbcfe52be729e4 10.0.0.0/25 
-        Create network acl entry for acl-078cbcfe52be729e4 10.0.0.0/25 
-        Create tag boto3-client-sdk = boto3-client-sdk for eipalloc-0e749f729f25443cc 
-        Created elastic ip eipalloc-0e749f729f25443cc for vpc 
-        Create tag boto3-client-sdk = boto3-client-sdk for eipalloc-00eaaaf15060163db 
-        Created elastic ip eipalloc-00eaaaf15060163db for vpc 
-        Create security group 
-        Create tag boto3-client-sdk = boto3-client-sdk for sg-037185ec7c86f4473 
-        Authorize sg ingress sg-037185ec7c86f4473 
-        Authorize sg egress sg-037185ec7c86f4473 
-        Authorize sg ingress sg-037185ec7c86f4473 
-        Authorize sg egress sg-037185ec7c86f4473 
-        Authorize sg ingress sg-037185ec7c86f4473 
-        Authorize sg egress sg-037185ec7c86f4473 
+        Create tag boto3-client-sdk = boto3-client-sdk for subnet-02c2bf484c689cf52 
+        Map subnet-02c2bf484c689cf52 public-ip-on-launch
+        Associate route table rtb-08ad6540092fa44d8 to subnet-02c2bf484c689cf52 
+        Create network acl for vpc-0a6fd97ca3b099531 
+        Create tag boto3-client-sdk = boto3-client-sdk for acl-0fbefe583e4a568e3 
+        Create network acl entry for acl-0fbefe583e4a568e3 10.0.0.128/25 
+        Create network acl entry for acl-0fbefe583e4a568e3 10.0.0.128/25 
         Create launch_template 
-        Create tag boto3-client-sdk = boto3-client-sdk for lt-071e6d6ef4dd40446 
-        Create launch_template lt-071e6d6ef4dd40446 version 0
-        Create launch_template lt-071e6d6ef4dd40446 version 1
+        Create tag boto3-client-sdk = boto3-client-sdk for lt-0a8fef412c4935fc8 
+        Create launch_template lt-0a8fef412c4935fc8 version 0
+        Create launch_template lt-0a8fef412c4935fc8 version 1
         
-        Startup Elastic Load Balancer
+        Create Elastic Load Balancing environment
         Create Elastic Load Balancer: boto3-client-sdk
         Wait until active ...
+        Create Tags for arn:aws:elasticloadbalancing:eu-west-1:347924373385:loadbalancer/app/boto3-client-sdk/3814273b7a318209
+        Create Target Group for boto3-client-sdk
+        Create Tags for arn:aws:elasticloadbalancing:eu-west-1:347924373385:loadbalancer/app/boto3-client-sdk/3814273b7a318209
+        Create Listener for boto3-client-sdk
+        failed to create ELB Target Group
         elb created
         
-        Startup AutoScaling Instances
+        Create AutoScaling
         Create launch_configuration boto3-client-sdk
         Create AutoScaling group: boto3-client-sdk
         Attach target groups to AutoScaling group boto3-client-sdk
-        Failed with An error occurred (ValidationError) when calling the AttachLoadBalancerTargetGroups operation: Provided Target Groups may not be valid. Please ensure they exist and try again.
-                
+        Create tag boto3-client-sdk = boto3-client-sdk for auto-scaling-group 
+        Create AutoScaling policy boto3-client-sdk
+        Create AutoScaling Notification boto3-client-sdk
+        
+        Ok
 
 
 Teardown tagged secure ASG/EC2/ELB/SNS/VPC services with two zones/instances::
 
-      $ ./aws_service_client_ood.py -k my_keypair -a clean -w 'sns-vpc-autoscaling-elb'
+      $ ./awsbaby.py -k your_keypair -a clean -w 'sns-vpc-autoscaling-elb'
         
         Teardown Simple Notification Service
         Delete SNS topic arn:aws:sns:eu-west-1:347924373385:boto3-client-sdk 
-        Done
         
-        Teardown Elastic Load Balancer
-        Delete Elastic Load Balancer arn:aws:elasticloadbalancing:eu-west-1:347924373385:loadbalancer/app/boto3-client-sdk/0e4c3668d93158d1
+        Teardown Elastic Load Balancing
+        Delete Listener arn:aws:elasticloadbalancing:eu-west-1:347924373385:listener/app/boto3-client-sdk/3814273b7a318209/a389df5c8093ed08
+        Delete Elastic Load Balancer arn:aws:elasticloadbalancing:eu-west-1:347924373385:loadbalancer/app/boto3-client-sdk/3814273b7a318209
         
         Teardown AutoScaling
-        No auto-scaling notifications found
-        Delete AutoScaling group tags boto3-client-sdk
+        Delete Auto Scaling Group boto3-client-sdk Notification arn:aws:sns:eu-west-1:347924373385:boto3-client-sdk
         No auto-scaling policies found
         Delete AutoScaling group boto3-client-sdk
-        wait for deletion ...
         Delete launch_configuration boto3-client-sdk
         
-        Teardown VPC & Security 
-        Found: vpc-00e32a97fa23f8d77
-        No vpc endpoints detected
-        No vpc connection endpoints detected
+        Teardown EC2 infrastructure
         No ec2 instances detected
-        Release eipalloc-0d10acbc706530c6f 
-        Release eipalloc-06253507adfb1e2be 
-        Delete launch template lt-0d9a00f61a36167e7 version 3
-        Delete launch template lt-0d9a00f61a36167e7 version 2
-        Delete launch template lt-0d9a00f61a36167e7 version 1
-        Delete launch_template lt-0d9a00f61a36167e7 boto3-client-sdk
+        No elastic ips detected
+        Delete launch template lt-0a8fef412c4935fc8 version 3
+        Delete launch template lt-0a8fef412c4935fc8 version 2
+        Delete launch template lt-0a8fef412c4935fc8 version 1
+        Delete launch_template lt-0a8fef412c4935fc8 boto3-client-sdk
         No network interfaces detected
-        Detach igw-031fc8a2792cc2c0e from vpc-00e32a97fa23f8d77 
-        Delete internet gateway igw-031fc8a2792cc2c0e 
-        Delete subnet-0b448dbf294c6f089 
-        Delete subnet-09943b8b22bd88fb4 
+        Detach igw-0cbf42d25568b5432 from vpc-0a6fd97ca3b099531
+        Delete internet gateway igw-0cbf42d25568b5432 
+        Delete subnet-0de926575ca79f18e 
+        Delete subnet-02c2bf484c689cf52 
         Skipping main route table
-        Delete rtb-035f63506a71cf413 
+        Delete rtb-08ad6540092fa44d8 
         No nat gateways detected
-        Delete entry for acl-03c312f9f283ffa9b 
-        Delete entry for acl-03c312f9f283ffa9b 
-        Delete entry for acl-03c312f9f283ffa9b 
-        Delete entry for acl-03c312f9f283ffa9b 
-        Delete acl-03c312f9f283ffa9b 
-        Delete entry for acl-0d8ab9847a2a8a84f 
-        Delete entry for acl-0d8ab9847a2a8a84f 
-        Delete entry for acl-0d8ab9847a2a8a84f 
-        Delete entry for acl-0d8ab9847a2a8a84f 
-        Delete acl-0d8ab9847a2a8a84f 
-        Revoke sg ingress from sg-0bb8d3baee1246265 
-        Revoke sg ingress from sg-0bb8d3baee1246265 
-        Revoke sg ingress from sg-0bb8d3baee1246265 
-        Revoke sg ingress from sg-0bb8d3baee1246265 
-        Revoke sg ingress from sg-0bb8d3baee1246265 
-        Revoke sg ingress from sg-0bb8d3baee1246265 
-        Revoke sg egress sg-0bb8d3baee1246265 
-        Revoke sg egress sg-0bb8d3baee1246265 
-        Revoke sg egress sg-0bb8d3baee1246265 
-        Revoke sg egress sg-0bb8d3baee1246265 
-        Revoke sg egress sg-0bb8d3baee1246265 
-        Revoke sg egress sg-0bb8d3baee1246265 
+        Delete entry for acl-01f84dd3cae89399c 
+        Delete entry for acl-01f84dd3cae89399c 
+        Delete entry for acl-01f84dd3cae89399c 
+        Delete entry for acl-01f84dd3cae89399c 
+        Delete acl-01f84dd3cae89399c 
+        Delete entry for acl-0fbefe583e4a568e3 
+        Delete entry for acl-0fbefe583e4a568e3 
+        Delete entry for acl-0fbefe583e4a568e3 
+        Delete entry for acl-0fbefe583e4a568e3 
+        Delete acl-0fbefe583e4a568e3 
+        
+        Teardown Security Group
         No referencing security groups detected
-        Deleting security group sg-0bb8d3baee1246265
-        Delete sg-0bb8d3baee1246265 
-        Delete vpc-00e32a97fa23f8d77
+        Deleting security group sg-00b6ea783220fde88
+        Delete sg-00b6ea783220fde88 
+        
+        Teardown VPC
+        Delete vpc-0a6fd97ca3b099531 
+        
+        Ok
 
-
-Teardown various stuff::
-
-        $ ./aws_compute_client_ood.py -k my_keypair -a clean -w 'sns-vpc-autoscaling-elb'
-        
-        Teardown Simple Notification Service
-        Done
-        
-        Teardown Elastic Load Balancer
-        No Elastic Load Balancer found
-        
-        Teardown AutoScaling
-        No Auto Scaling Groups found
-        No Launch Configurations found
-        
-        Teardown VPC & Security 
-        No VPCs found
-
-
-        $ ./aws_service_client_odd.py -k my_keypair -a clean -w 'vpc-instance-sns'
-        
-        Teardown Simple Notification Service
-        Done
-        
-        Teardown VPC & Security 
-        No VPCs found
